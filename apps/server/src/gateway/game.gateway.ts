@@ -7,7 +7,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import type { RoomJoinPayload, SignalPayload } from 'packages/shared/src/types';
+import type { RoomJoinPayload, SignalPayload } from '../../packages/shared/src/types';
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({ cors: { origin: '*' } })
@@ -15,7 +15,7 @@ export class GameGateway implements OnGatewayDisconnect, OnModuleInit {
   @WebSocketServer() server!: Server;
 
   onModuleInit() {
-    this.server.on('connection', (socket) => {
+    this.server?.on('connection', (socket) => {
       console.log(`Client connected: ${socket.id}`);
       console.log(`Total clients: ${this.server.engine.clientsCount}`);
     });
@@ -68,6 +68,14 @@ export class GameGateway implements OnGatewayDisconnect, OnModuleInit {
       initiator: room[0],
       joiner: room[1],
     });
+  }
+
+  @SubscribeMessage('peer:id')
+  handlePeerId(
+    @MessageBody() payload: { roomCode: string; peerId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.to(payload.roomCode).emit('peer:id', { peerId: payload.peerId });
   }
 
   @SubscribeMessage('signal')
