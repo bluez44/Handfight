@@ -5,6 +5,7 @@ export interface FrameData {
   gesture: string;         // Gesture value from handPose utils
   normX: number;           // box x normalised to sender's viewport width  (0-1)
   normY: number;           // box y normalised to sender's viewport height (0-1)
+  hp: number;              // sender's current HP — receiver uses to detect win
 }
 
 // Signaling messages qua Socket.io
