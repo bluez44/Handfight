@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { FrameData } from "../../packages/shared/src/types";
 import { useNetworkManager } from "../context/networkManager";
-import type { BoxState } from "./useBoxController";
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ConnectionState =
@@ -19,8 +17,8 @@ export interface RoomConnection {
   roomCode: string | null;
   remoteStream: MediaStream | null;
   remoteFrameRef: MutableRefObject<FrameData | null>;
-  /** Pass as onTick to useBoxController — sends frame data only when connected. */
-  sendFrame: (boxState: BoxState) => void;
+  /** Called by GameScene each physics tick — forwards data only when connected. */
+  sendFrame: (frame: FrameData) => void;
   createRoom: () => Promise<void>;
   joinRoom: (code: string) => void;
   disconnect: () => void;
@@ -105,17 +103,11 @@ export function useRoomConnection(
     syncState("idle");
   };
 
-  // ── sendFrame (onTick callback for useBoxController) ─────────────────────
+  // ── sendFrame — called by GameScene each physics tick ────────────────────
   const sendFrame = useCallback(
-    (boxState: BoxState) => {
+    (frame: FrameData) => {
       if (stateRef.current !== "connected") return;
-      manager.sendFrame({
-        ts: Date.now(),
-        wrist: boxState.wrist,
-        gesture: boxState.gesture,
-        normX: boxState.x / window.innerWidth,
-        normY: boxState.y / window.innerHeight,
-      });
+      manager.sendFrame(frame);
     },
     [manager],
   );
