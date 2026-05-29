@@ -1,0 +1,2233 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HandFight — Gesture Combat</title>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
+      crossorigin="anonymous"
+    ></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap");
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --red: #e24b4a;
+        --red-dim: rgba(226, 75, 74, 0.22);
+        --blue: #378add;
+        --blue-dim: rgba(55, 138, 221, 0.22);
+        --gold: #ef9f27;
+        --green: #5dc985;
+        --bg: #08080f;
+        --surface: #111118;
+        --surface2: #191924;
+        --border: rgba(255, 255, 255, 0.07);
+        --text: #e2e2ec;
+        --muted: rgba(226, 226, 236, 0.45);
+        --font-title: "Bebas Neue", sans-serif;
+        --font-mono: "Share Tech Mono", monospace;
+        --font-ui: "Rajdhani", sans-serif;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-ui);
+      }
+      .screen {
+        display: none;
+        width: 100vw;
+        height: 100vh;
+        flex-direction: column;
+        position: absolute;
+        inset: 0;
+      }
+      .screen.active {
+        display: flex;
+      }
+      .screen::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 999;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent 0px,
+          transparent 2px,
+          rgba(0, 0, 0, 0.022) 2px,
+          rgba(0, 0, 0, 0.022) 4px
+        );
+      }
+
+      /* ── LOADING ── */
+      #s-loading {
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+      }
+      .load-logo {
+        font-family: var(--font-title);
+        font-size: 56px;
+        letter-spacing: 4px;
+        text-align: center;
+        line-height: 1;
+      }
+      .load-logo .r {
+        color: var(--red);
+      }
+      .load-logo .b {
+        color: var(--blue);
+      }
+      .load-bar-wrap {
+        width: 240px;
+        height: 3px;
+        background: var(--surface2);
+        margin: 20px auto 8px;
+      }
+      .load-bar {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--red), var(--gold));
+        transition: width 0.3s ease;
+      }
+      .load-status {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--muted);
+        text-align: center;
+        letter-spacing: 2px;
+      }
+
+      /* ── MENU ── */
+      #s-menu {
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(
+          ellipse 80% 60% at 50% 40%,
+          #150a15 0%,
+          var(--bg) 70%
+        );
+      }
+      #s-menu::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(rgba(55, 138, 221, 0.022) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(55, 138, 221, 0.022) 1px, transparent 1px);
+        background-size: 48px 48px;
+      }
+      .menu-inner {
+        text-align: center;
+        position: relative;
+        z-index: 2;
+      }
+      .menu-logo {
+        font-family: var(--font-title);
+        font-size: clamp(64px, 10vw, 100px);
+        letter-spacing: 6px;
+        line-height: 0.9;
+        background: linear-gradient(
+          175deg,
+          #fff 0%,
+          var(--gold) 55%,
+          var(--red) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 40px rgba(239, 159, 39, 0.35));
+      }
+      .menu-tag {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 7px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .menu-div {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 32px 0 28px;
+        color: var(--muted);
+        font-family: var(--font-title);
+        font-size: 18px;
+      }
+      .menu-div::before,
+      .menu-div::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--border),
+          transparent
+        );
+      }
+      .menu-btns {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+      }
+      .btn-menu {
+        font-family: var(--font-title);
+        font-size: 21px;
+        letter-spacing: 4px;
+        padding: 11px 52px;
+        border: none;
+        cursor: pointer;
+        clip-path: polygon(14px 0%, 100% 0%, calc(100% - 14px) 100%, 0% 100%);
+        transition:
+          filter 0.2s,
+          transform 0.15s;
+      }
+      .btn-menu.primary {
+        background: linear-gradient(135deg, var(--red) 0%, #9a2020 100%);
+        color: #fff;
+      }
+      .btn-menu.sec {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+        font-size: 14px;
+        letter-spacing: 3px;
+      }
+      .btn-menu:hover {
+        filter: brightness(1.2);
+        transform: scale(1.03);
+      }
+      .mc-corner {
+        position: absolute;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.08);
+        line-height: 1.7;
+      }
+      .mc-corner.tl {
+        top: 20px;
+        left: 24px;
+      }
+      .mc-corner.tr {
+        top: 20px;
+        right: 24px;
+        text-align: right;
+      }
+
+      /* ── GUIDE ── */
+      #s-guide {
+        background: var(--bg);
+        padding: 28px 40px;
+        gap: 18px;
+        align-items: center;
+      }
+      .guide-title {
+        font-family: var(--font-title);
+        font-size: 30px;
+        letter-spacing: 4px;
+        color: var(--gold);
+      }
+      .guide-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        width: 100%;
+        max-width: 720px;
+      }
+      .gp-label {
+        font-family: var(--font-title);
+        font-size: 20px;
+        letter-spacing: 2px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 6px;
+      }
+      .gp-label.p1 {
+        color: var(--red);
+        border-color: var(--red-dim);
+      }
+      .gp-label.p2 {
+        color: var(--blue);
+        border-color: var(--blue-dim);
+      }
+      .gr-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        margin-bottom: 6px;
+      }
+      .gr-icon {
+        font-size: 26px;
+        width: 34px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .gr-name {
+        font-family: var(--font-title);
+        font-size: 15px;
+        letter-spacing: 1px;
+      }
+      .gr-desc {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 1px;
+        font-family: var(--font-mono);
+      }
+      .guide-note {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.7;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--gold);
+        padding: 10px 16px;
+        max-width: 720px;
+        width: 100%;
+      }
+      .guide-btns {
+        display: flex;
+        gap: 12px;
+      }
+      .btn-sm {
+        font-family: var(--font-title);
+        font-size: 17px;
+        letter-spacing: 3px;
+        padding: 9px 30px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+      }
+      .btn-sm.red {
+        background: var(--red);
+        color: #fff;
+      }
+      .btn-sm.blue {
+        background: var(--blue);
+        color: #fff;
+      }
+      .btn-sm.ghost {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        clip-path: none;
+      }
+      .btn-sm:hover {
+        filter: brightness(1.15);
+        transform: translateY(-1px);
+      }
+
+      /* ── SPRITE TESTER ── */
+      #s-tester {
+        background: var(--bg);
+        flex-direction: row;
+      }
+      .tester-left {
+        width: 300px;
+        flex-shrink: 0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+      .tester-header {
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .tester-title {
+        font-family: var(--font-title);
+        font-size: 20px;
+        letter-spacing: 2px;
+        color: var(--gold);
+      }
+      .tester-sub {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--muted);
+        letter-spacing: 2px;
+        margin-top: 2px;
+      }
+      .cfg-section {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+      }
+      .cfg-label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 3px;
+        color: var(--muted);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .cfg-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+      .cfg-tab {
+        flex: 1;
+        padding: 6px;
+        font-family: var(--font-title);
+        font-size: 14px;
+        letter-spacing: 2px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.15s;
+      }
+      .cfg-tab.active.p1 {
+        border-color: var(--red);
+        color: var(--red);
+        background: var(--red-dim);
+      }
+      .cfg-tab.active.p2 {
+        border-color: var(--blue);
+        color: var(--blue);
+        background: var(--blue-dim);
+      }
+      .action-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .a-item {
+        padding: 8px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .a-item:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      .a-item.active {
+        border-color: var(--gold);
+        background: rgba(239, 159, 39, 0.07);
+      }
+      .a-icon {
+        font-size: 18px;
+        width: 26px;
+        text-align: center;
+      }
+      .a-name {
+        font-family: var(--font-title);
+        font-size: 14px;
+        letter-spacing: 1px;
+      }
+      .a-meta {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--muted);
+      }
+      .upload-zone {
+        border: 1px dashed rgba(255, 255, 255, 0.14);
+        padding: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s;
+        background: rgba(255, 255, 255, 0.02);
+        position: relative;
+        margin-bottom: 6px;
+      }
+      .upload-zone:hover {
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      .upload-zone input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+      .upload-text {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .upload-ok {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--green);
+        margin-top: 4px;
+      }
+      .frame-cfg {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+      .fc-label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .fc-input {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        padding: 4px 8px;
+        width: 52px;
+        text-align: center;
+      }
+      .fc-input:focus {
+        outline: none;
+        border-color: var(--gold);
+      }
+      .tester-bottom {
+        padding: 14px 18px;
+        margin-top: auto;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      /* Tester preview area */
+      .tester-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #050508;
+        overflow: hidden;
+        position: relative;
+      }
+      .tester-preview {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .tester-grid-bg {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(55, 138, 221, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(55, 138, 221, 0.04) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+      }
+      .tester-floor-line {
+        position: absolute;
+        bottom: 22%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(55, 138, 221, 0.2),
+          transparent
+        );
+        pointer-events: none;
+      }
+      #testerCanvas {
+        display: block;
+      }
+      .tester-info {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--muted);
+        text-align: right;
+        line-height: 1.8;
+        background: rgba(8, 8, 15, 0.75);
+        padding: 6px 10px;
+      }
+      .playback-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .pb-label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 2px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .frame-strip {
+        display: flex;
+        gap: 3px;
+        flex: 1;
+        overflow-x: auto;
+        padding: 3px 0;
+      }
+      .f-thumb {
+        width: 38px;
+        height: 38px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--muted);
+        flex-shrink: 0;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.1s;
+      }
+      .f-thumb.cur {
+        border-color: var(--gold);
+      }
+      .f-thumb canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .spd-btns {
+        display: flex;
+        gap: 4px;
+      }
+      .spd-btn {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        padding: 4px 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .spd-btn.active {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .spd-btn:hover {
+        color: var(--text);
+      }
+
+      /* ── GAME ── */
+      #s-game {
+        background: #000;
+      }
+      .hud {
+        display: flex;
+        align-items: stretch;
+        justify-content: space-between;
+        height: 58px;
+        background: rgba(8, 8, 15, 0.92);
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        z-index: 50;
+        flex-shrink: 0;
+      }
+      .hud-player {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 16px;
+        flex: 1;
+      }
+      .hud-player.p2 {
+        flex-direction: row-reverse;
+      }
+      .hud-pname {
+        font-family: var(--font-title);
+        font-size: 14px;
+        letter-spacing: 2px;
+        white-space: nowrap;
+      }
+      .hud-player.p1 .hud-pname {
+        color: var(--red);
+      }
+      .hud-player.p2 .hud-pname {
+        color: var(--blue);
+      }
+      .hp-wrap {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .hp-bar {
+        height: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        position: relative;
+        overflow: hidden;
+      }
+      .hp-inner {
+        height: 100%;
+        transition: width 0.25s ease;
+      }
+      .hud-player.p1 .hp-inner {
+        background: linear-gradient(90deg, #8b1f1f, var(--red));
+      }
+      .hud-player.p2 .hp-inner {
+        background: linear-gradient(90deg, var(--blue), #0e4077);
+        float: right;
+      }
+      .hp-num {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .hud-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 20px;
+        flex-shrink: 0;
+      }
+      .hud-round {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 3px;
+        color: var(--muted);
+      }
+      .hud-timer {
+        font-family: var(--font-title);
+        font-size: 30px;
+        line-height: 1;
+      }
+      .hud-timer.warn {
+        color: var(--red);
+        animation: blink 0.5s step-end infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .arena {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      #gameCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .cam-overlay {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 40;
+      }
+      .cam-box {
+        position: relative;
+        overflow: hidden;
+      }
+      #videoP1 {
+        display: block;
+        transform: scaleX(-1);
+      }
+      #camCanvas1,
+      #camCanvas2 {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .cam-label {
+        position: absolute;
+        top: 3px;
+        left: 5px;
+        z-index: 5;
+        font-family: var(--font-mono);
+        font-size: 8px;
+        letter-spacing: 1px;
+      }
+      .cam-label.p1 {
+        color: var(--red);
+      }
+      .cam-label.p2 {
+        color: var(--blue);
+      }
+      .cam-border {
+        position: absolute;
+        inset: 0;
+        border: 1px solid;
+        pointer-events: none;
+      }
+      .cam-border.p1 {
+        border-color: rgba(226, 75, 74, 0.5);
+      }
+      .cam-border.p2 {
+        border-color: rgba(55, 138, 221, 0.5);
+      }
+      .gest-hud {
+        position: absolute;
+        bottom: 84px;
+        z-index: 40;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        padding: 4px 10px;
+        border: 1px solid;
+        backdrop-filter: blur(4px);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .gest-hud.p1 {
+        left: 12px;
+        border-color: rgba(226, 75, 74, 0.35);
+        background: rgba(226, 75, 74, 0.06);
+        color: var(--red);
+      }
+      .gest-hud.p2 {
+        right: 12px;
+        border-color: rgba(55, 138, 221, 0.35);
+        background: rgba(55, 138, 221, 0.06);
+        color: var(--blue);
+        text-align: right;
+      }
+      .gest-action {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .gest-raw {
+        font-size: 9px;
+        opacity: 0.6;
+        margin-top: 1px;
+      }
+
+      /* ── ROUND END ── */
+      #s-roundend {
+        background: rgba(8, 8, 15, 0.9);
+        backdrop-filter: blur(8px);
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 200;
+      }
+      .re-tag {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 5px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .re-banner {
+        font-family: var(--font-title);
+        font-size: clamp(52px, 9vw, 86px);
+        letter-spacing: 6px;
+        background: linear-gradient(175deg, #fff 0%, var(--gold) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 28px rgba(239, 159, 39, 0.5));
+      }
+      .re-sub {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        letter-spacing: 4px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .re-stats {
+        display: flex;
+        gap: 2px;
+        margin: 28px 0;
+      }
+      .re-stat {
+        padding: 12px 22px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        text-align: center;
+      }
+      .re-val {
+        font-family: var(--font-title);
+        font-size: 26px;
+      }
+      .re-key {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--muted);
+        letter-spacing: 3px;
+        margin-top: 4px;
+      }
+      .re-btns {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- LOADING -->
+    <div class="screen active" id="s-loading">
+      <div style="text-align: center">
+        <div class="load-logo">
+          <span class="r">HAND</span> <span class="b">FIGHT</span>
+        </div>
+        <div
+          style="
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 6px;
+            color: var(--muted);
+            margin: 6px 0 20px;
+          "
+        >
+          SPRITE EDITION
+        </div>
+        <div class="load-bar-wrap">
+          <div class="load-bar" id="loadBar"></div>
+        </div>
+        <div class="load-status" id="loadStatus">Đang khởi động...</div>
+      </div>
+    </div>
+
+    <!-- MENU -->
+    <div class="screen" id="s-menu">
+      <div class="mc-corner tl">v2.0 · SPRITE SHEET<br />MEDIAPIPE HANDS</div>
+      <div class="mc-corner tr">LOCAL 2P<br />HAND TRACKING</div>
+      <div class="menu-inner">
+        <div class="menu-logo">HAND<br />FIGHT</div>
+        <div class="menu-tag">ĐIỀU KHIỂN BẰNG CỬ CHỈ TAY · 2 NGƯỜI CHƠI</div>
+        <div class="menu-div">✦ ✦ ✦</div>
+        <div class="menu-btns">
+          <button class="btn-menu primary" onclick="startGame()">
+            BẮT ĐẦU GAME
+          </button>
+          <button class="btn-menu sec" onclick="openTester()">
+            🎨 CẤU HÌNH SPRITE
+          </button>
+          <button class="btn-menu sec" onclick="showScreen('s-guide')">
+            XEM HƯỚNG DẪN
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GUIDE -->
+    <div class="screen" id="s-guide">
+      <div
+        style="
+          font-family: var(--font-title);
+          font-size: 30px;
+          letter-spacing: 4px;
+          color: var(--gold);
+          margin: 28px auto 0;
+          max-width: 720px;
+          width: 100%;
+          padding: 0 40px;
+        "
+      >
+        HƯỚNG DẪN
+      </div>
+      <div class="guide-grid" style="margin: 16px auto 0; padding: 0 40px">
+        <div>
+          <div class="gp-label p1">✋ TAY TRÁI — P1</div>
+          <div class="gr-row">
+            <div class="gr-icon">✊</div>
+            <div>
+              <div class="gr-name" style="color: var(--red)">PUNCH</div>
+              <div class="gr-desc">Nắm tay → tấn công -15 HP</div>
+            </div>
+          </div>
+          <div class="gr-row">
+            <div class="gr-icon">🖐</div>
+            <div>
+              <div class="gr-name">BLOCK</div>
+              <div class="gr-desc">Mở tay → giảm 60% sát thương</div>
+            </div>
+          </div>
+          <div class="gr-row">
+            <div class="gr-icon">☝</div>
+            <div>
+              <div class="gr-name" style="color: var(--gold)">MOVE</div>
+              <div class="gr-desc">Ngón trỏ → di chuyển theo cổ tay</div>
+            </div>
+          </div>
+          <div class="gr-row">
+            <div class="gr-icon">🤞</div>
+            <div>
+              <div class="gr-name" style="color: var(--green)">SPECIAL</div>
+              <div class="gr-desc">2 ngón → -30 HP, cooldown 3s</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="gp-label p2">🤚 TAY PHẢI — P2</div>
+          <div class="gr-row">
+            <div class="gr-icon">✊</div>
+            <div>
+              <div class="gr-name" style="color: var(--blue)">PUNCH</div>
+              <div class="gr-desc">Nắm tay → tấn công -15 HP</div>
+            </div>
+          </div>
+          <div class="gr-row">
+            <div class="gr-icon">🖐</div>
+            <div>
+              <div class="gr-name">BLOCK</div>
+              <div class="gr-desc">Mở tay → giảm 60% sát thương</div>
+            </div>
+          </div>
+          <div class="gr-row">
+            <div class="gr-icon">☝</div>
+            <div>
+              <div class="gr-name" style="color: var(--gold)">MOVE</div>
+              <div class="gr-desc">Ngón trỏ → di chuyển theo cổ tay</div>
+            </div>
+          </div>
+          <div class="gr-row">
+            <div class="gr-icon">🤞</div>
+            <div>
+              <div class="gr-name" style="color: var(--green)">SPECIAL</div>
+              <div class="gr-desc">2 ngón → -30 HP, cooldown 3s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="guide-note"
+        style="margin: 16px auto 0; max-width: 720px; width: calc(100% - 80px)"
+      >
+        ⚡ Cả 2 người đứng trước cùng 1 camera · Tay trái = P1 · Tay phải =
+        P2<br />
+        💡 Khoảng cách 50–80cm · Đủ ánh sáng · Nền tường sáng để nhận diện tốt
+        hơn
+      </div>
+      <div class="guide-btns" style="margin: 16px auto 0; padding: 0 40px">
+        <button class="btn-sm red" onclick="startGame()">VÀO TRẬN ▶</button>
+        <button class="btn-sm ghost" onclick="showScreen('s-menu')">
+          ← MENU
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+     SPRITE TESTER
+═══════════════════════════════════════ -->
+    <div class="screen" id="s-tester">
+      <!-- Left panel: config -->
+      <div class="tester-left">
+        <div class="tester-header">
+          <div class="tester-title">SPRITE TESTER</div>
+          <div class="tester-sub">UPLOAD · PREVIEW · CONFIGURE</div>
+        </div>
+
+        <div class="cfg-section">
+          <div class="cfg-label">Player</div>
+          <div class="cfg-tabs">
+            <div
+              class="cfg-tab active p1"
+              id="tab-p1"
+              onclick="switchPlayer(0)"
+            >
+              P1
+            </div>
+            <div class="cfg-tab p2" id="tab-p2" onclick="switchPlayer(1)">
+              P2
+            </div>
+          </div>
+          <div class="cfg-label">Hành động</div>
+          <div class="action-list" id="actionList"></div>
+        </div>
+
+        <div class="cfg-section" id="uploadSection">
+          <div class="cfg-label" id="uploadLabel">IDLE — SPRITE SHEET</div>
+
+          <div class="upload-zone">
+            <input
+              type="file"
+              accept="image/*"
+              id="fileInput"
+              onchange="handleUpload(event)"
+            />
+            <div style="font-size: 28px; margin-bottom: 6px">📂</div>
+            <div class="upload-text">
+              Kéo thả hoặc click để chọn<br />sprite sheet (.png / .jpg / .webp)
+            </div>
+          </div>
+          <div class="upload-ok" id="uploadOk" style="display: none">
+            ✓ Đã load
+          </div>
+
+          <div class="frame-cfg">
+            <span class="fc-label">FRAMES:</span>
+            <input
+              class="fc-input"
+              type="number"
+              id="fcFrames"
+              value="6"
+              min="1"
+              max="64"
+              onchange="applyFrameConfig()"
+            />
+            <span class="fc-label">FPS:</span>
+            <input
+              class="fc-input"
+              type="number"
+              id="fcFps"
+              value="10"
+              min="1"
+              max="60"
+              onchange="applyFrameConfig()"
+            />
+          </div>
+          <div
+            style="
+              font-family: var(--font-mono);
+              font-size: 9px;
+              color: var(--muted);
+              margin-top: 8px;
+              line-height: 1.6;
+              padding: 8px;
+              background: var(--surface2);
+              border-left: 2px solid var(--gold);
+            "
+          >
+            Sprite sheet: tất cả frames xếp<br />theo hàng ngang trong 1 ảnh.<br />
+            Frame width = total_w ÷ frames
+          </div>
+        </div>
+
+        <div class="tester-bottom">
+          <button
+            class="btn-sm red"
+            onclick="showScreen('s-menu')"
+            style="
+              width: 100%;
+              clip-path: none;
+              text-align: center;
+              font-size: 15px;
+            "
+          >
+            ✓ XONG — VỀ MENU
+          </button>
+          <button
+            class="btn-sm ghost"
+            onclick="showScreen('s-menu')"
+            style="
+              width: 100%;
+              clip-path: none;
+              font-size: 12px;
+              text-align: center;
+            "
+          >
+            ← QUAY LẠI
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: preview -->
+      <div class="tester-main">
+        <div class="tester-preview">
+          <div class="tester-grid-bg"></div>
+          <div class="tester-floor-line"></div>
+          <canvas id="testerCanvas"></canvas>
+          <div class="tester-info" id="testerInfo">
+            Chưa có sprite<br />Upload ảnh để preview
+          </div>
+        </div>
+
+        <div class="playback-bar">
+          <span class="pb-label">FRAMES:</span>
+          <div class="frame-strip" id="frameStrip"></div>
+          <div class="spd-btns">
+            <span class="pb-label">SPEED:</span>
+            <div class="spd-btn active" onclick="setTesterSpeed(1, this)">
+              1×
+            </div>
+            <div class="spd-btn" onclick="setTesterSpeed(0.5, this)">½×</div>
+            <div class="spd-btn" onclick="setTesterSpeed(2, this)">2×</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAME -->
+    <div class="screen" id="s-game">
+      <div class="hud">
+        <div class="hud-player p1">
+          <div class="hud-pname">PLAYER 1</div>
+          <div class="hp-wrap">
+            <div class="hp-bar">
+              <div class="hp-inner" id="hp1bar" style="width: 100%"></div>
+            </div>
+            <div class="hp-num"><span id="hp1val">100</span> / 100</div>
+          </div>
+        </div>
+        <div class="hud-center">
+          <div class="hud-round" id="roundLabel">ROUND 1</div>
+          <div class="hud-timer" id="hudTimer">300</div>
+        </div>
+        <div class="hud-player p2">
+          <div class="hud-pname">PLAYER 2</div>
+          <div class="hp-wrap">
+            <div class="hp-bar">
+              <div class="hp-inner" id="hp2bar" style="width: 100%"></div>
+            </div>
+            <div class="hp-num"><span id="hp2val">100</span> / 100</div>
+          </div>
+        </div>
+      </div>
+      <div class="arena">
+        <canvas id="gameCanvas"></canvas>
+        <div class="cam-overlay">
+          <div class="cam-box">
+            <video
+              id="videoP1"
+              width="108"
+              height="76"
+              autoplay
+              muted
+              playsinline
+            ></video>
+            <canvas id="camCanvas1" width="108" height="76"></canvas>
+            <div class="cam-label p1">P1·LEFT</div>
+            <div class="cam-border p1"></div>
+          </div>
+          <div class="cam-box">
+            <canvas id="camCanvas2" width="108" height="76"></canvas>
+            <div class="cam-label p2">P2·RIGHT</div>
+            <div class="cam-border p2"></div>
+          </div>
+        </div>
+        <div class="gest-hud p1">
+          <div class="gest-action" id="gact1">—</div>
+          <div class="gest-raw" id="graw1">no hand</div>
+        </div>
+        <div class="gest-hud p2">
+          <div class="gest-action" id="gact2">—</div>
+          <div class="gest-raw" id="graw2">no hand</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUND END -->
+    <div class="screen" id="s-roundend">
+      <div class="re-tag" id="reTag">ROUND OVER</div>
+      <div class="re-banner" id="reBanner">KO!</div>
+      <div class="re-sub" id="reSub">PLAYER 1 WINS</div>
+      <div class="re-stats">
+        <div class="re-stat">
+          <div class="re-val" id="rs1">0</div>
+          <div class="re-key">P1 HP LEFT</div>
+        </div>
+        <div class="re-stat">
+          <div class="re-val" id="rs2">0</div>
+          <div class="re-key">P2 HP LEFT</div>
+        </div>
+        <div class="re-stat">
+          <div class="re-val" id="rs3">0s</div>
+          <div class="re-key">FIGHT TIME</div>
+        </div>
+        <div class="re-stat">
+          <div class="re-val" id="rs4">0</div>
+          <div class="re-key">TOTAL HITS</div>
+        </div>
+      </div>
+      <div class="re-btns">
+        <button class="btn-sm red" onclick="startGame()">REMATCH</button>
+        <button class="btn-sm ghost" onclick="showScreen('s-menu')">
+          MAIN MENU
+        </button>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+      const $ = (id) => document.getElementById(id);
+
+      // ════════════════════════════════════════════════
+      //  SPRITE DATABASE
+      //  spriteDB[playerIndex][actionName] = { img, frames, fps }
+      // ════════════════════════════════════════════════
+      const ACTIONS = ["idle", "punch", "block", "special", "hurt"];
+      const ACTION_META = {
+        idle: {
+          icon: "🧍",
+          label: "IDLE",
+          desc: "Đứng chờ",
+          color: "var(--text)",
+        },
+        punch: {
+          icon: "✊",
+          label: "PUNCH",
+          desc: "Nắm tay",
+          color: "var(--red)",
+        },
+        block: {
+          icon: "🖐",
+          label: "BLOCK",
+          desc: "Mở tay",
+          color: "var(--blue)",
+        },
+        special: {
+          icon: "🤞",
+          label: "SPECIAL",
+          desc: "2 ngón bắt chéo",
+          color: "var(--green)",
+        },
+        hurt: {
+          icon: "💥",
+          label: "HURT",
+          desc: "Nhận damage",
+          color: "var(--gold)",
+        },
+      };
+
+      const spriteDB = {
+        0: Object.fromEntries(
+          ACTIONS.map((a) => [a, { img: null, frames: 6, fps: 10 }]),
+        ),
+        1: Object.fromEntries(
+          ACTIONS.map((a) => [a, { img: null, frames: 6, fps: 10 }]),
+        ),
+      };
+
+      // ════════════════════════════════════════════════
+      //  SPRITE ANIMATOR
+      // ════════════════════════════════════════════════
+      class SpriteAnimator {
+        constructor(pi) {
+          this.pi = pi;
+          this.cur = "idle";
+          this.frame = 0;
+          this.elapsed = 0;
+          this.speedMul = 1;
+        }
+
+        setAction(action) {
+          if (action === this.cur) return;
+          this.cur = action;
+          this.frame = 0;
+          this.elapsed = 0;
+        }
+
+        update(dt) {
+          const cfg = spriteDB[this.pi][this.cur];
+          if (!cfg || cfg.frames <= 1) return;
+          this.elapsed += dt * this.speedMul;
+          const dur = 1 / cfg.fps;
+          while (this.elapsed >= dur) {
+            this.elapsed -= dur;
+            this.frame = (this.frame + 1) % cfg.frames;
+          }
+        }
+
+        // Draw centered at (cx, floorY). flipX mirrors for facing-left.
+        // Returns true if sprite was drawn, false if fallback needed.
+        draw(ctx, cx, floorY, sprH, flipX, alpha) {
+          const cfg = spriteDB[this.pi][this.cur];
+          if (!cfg || !cfg.img) return false;
+          const img = cfg.img;
+          const fw = Math.floor(img.naturalWidth / cfg.frames);
+          const fh = img.naturalHeight;
+          const dh = sprH;
+          const dw = (fw / fh) * dh;
+          const dx = cx - dw / 2;
+          const dy = floorY - dh;
+          ctx.save();
+          if (alpha !== undefined) ctx.globalAlpha = alpha;
+          if (flipX) {
+            ctx.translate(cx * 2, 0);
+            ctx.scale(-1, 1);
+          }
+          ctx.drawImage(
+            img,
+            this.frame * fw,
+            0,
+            fw,
+            fh,
+            flipX ? -cx * 2 + dx : dx,
+            dy,
+            dw,
+            dh,
+          );
+          ctx.restore();
+          return true;
+        }
+
+        // Draw one frame into a small thumbnail canvas
+        drawThumb(thumbCanvas, frameIdx) {
+          const cfg = spriteDB[this.pi][this.cur];
+          if (!cfg || !cfg.img) return;
+          const fw = Math.floor(cfg.img.naturalWidth / cfg.frames);
+          const tc = thumbCanvas.getContext("2d");
+          tc.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
+          tc.drawImage(
+            cfg.img,
+            frameIdx * fw,
+            0,
+            fw,
+            cfg.img.naturalHeight,
+            0,
+            0,
+            thumbCanvas.width,
+            thumbCanvas.height,
+          );
+        }
+      }
+
+      const animators = [new SpriteAnimator(0), new SpriteAnimator(1)];
+
+      // ════════════════════════════════════════════════
+      //  SPRITE TESTER STATE
+      // ════════════════════════════════════════════════
+      let tPI = 0; // tester player index
+      let tAction = "idle"; // current action being configured
+      let tRAF = null;
+      let tLast = 0;
+      const tAnim = new SpriteAnimator(0); // dedicated animator for tester
+
+      function openTester() {
+        buildActionList();
+        selectAction(tAction);
+        showScreen("s-tester");
+        cancelAnimationFrame(tRAF);
+        tLast = performance.now();
+        tRAF = requestAnimationFrame(testerLoop);
+      }
+
+      function buildActionList() {
+        const el = $("actionList");
+        el.innerHTML = "";
+        ACTIONS.forEach((a) => {
+          const m = ACTION_META[a];
+          const cfg = spriteDB[tPI][a];
+          const loaded = cfg.img
+            ? `<span style="color:var(--green)">✓ loaded</span>`
+            : `<span>— empty</span>`;
+          const div = document.createElement("div");
+          div.className = "a-item" + (a === tAction ? " active" : "");
+          div.onclick = () => selectAction(a);
+          div.innerHTML = `<div class="a-icon">${m.icon}</div>
+      <div style="flex:1">
+        <div class="a-name" style="color:${m.color}">${m.label}</div>
+        <div class="a-meta">${cfg.frames}fr · ${cfg.fps}fps · ${loaded}</div>
+      </div>`;
+          el.appendChild(div);
+        });
+      }
+
+      function selectAction(action) {
+        tAction = action;
+        tAnim.pi = tPI;
+        tAnim.cur = action;
+        tAnim.frame = 0;
+        tAnim.elapsed = 0;
+        // Sync inputs
+        const cfg = spriteDB[tPI][action];
+        $("fcFrames").value = cfg.frames;
+        $("fcFps").value = cfg.fps;
+        $("uploadLabel").textContent =
+          ACTION_META[action].label + " — SPRITE SHEET";
+        if (cfg.img) {
+          $("uploadOk").style.display = "block";
+          $("uploadOk").textContent =
+            `✓ ${cfg.img.naturalWidth}×${cfg.img.naturalHeight}px`;
+        } else {
+          $("uploadOk").style.display = "none";
+        }
+        buildActionList();
+        buildFrameStrip();
+      }
+
+      function switchPlayer(pi) {
+        tPI = pi;
+        tAnim.pi = pi;
+        $("tab-p1").className = "cfg-tab" + (pi === 0 ? " active p1" : "");
+        $("tab-p2").className = "cfg-tab" + (pi === 1 ? " active p2" : "");
+        buildActionList();
+        selectAction(tAction);
+      }
+
+      function handleUpload(evt) {
+        const file = evt.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            spriteDB[tPI][tAction].img = img;
+            tAnim.frame = 0;
+            buildActionList();
+            buildFrameStrip();
+            selectAction(tAction);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        evt.target.value = "";
+      }
+
+      function applyFrameConfig() {
+        const f = Math.max(1, parseInt($("fcFrames").value) || 1);
+        const s = Math.max(1, parseInt($("fcFps").value) || 10);
+        spriteDB[tPI][tAction].frames = f;
+        spriteDB[tPI][tAction].fps = s;
+        tAnim.frame = Math.min(tAnim.frame, f - 1);
+        buildActionList();
+        buildFrameStrip();
+      }
+
+      function buildFrameStrip() {
+        const strip = $("frameStrip");
+        strip.innerHTML = "";
+        const cfg = spriteDB[tPI][tAction];
+        for (let i = 0; i < cfg.frames; i++) {
+          const div = document.createElement("div");
+          div.className = "f-thumb" + (i === tAnim.frame ? " cur" : "");
+          div.id = "ft" + i;
+          div.onclick = () => {
+            tAnim.frame = i;
+            tAnim.elapsed = 0;
+            refreshStrip();
+          };
+          if (cfg.img) {
+            const c = document.createElement("canvas");
+            c.width = 38;
+            c.height = 38;
+            div.appendChild(c);
+            tAnim.drawThumb(c, i);
+          } else {
+            div.textContent = i + 1;
+          }
+          strip.appendChild(div);
+        }
+      }
+
+      function refreshStrip() {
+        const cfg = spriteDB[tPI][tAction];
+        for (let i = 0; i < cfg.frames; i++) {
+          const el = $("ft" + i);
+          if (el) el.className = "f-thumb" + (i === tAnim.frame ? " cur" : "");
+        }
+      }
+
+      function setTesterSpeed(s, btn) {
+        tAnim.speedMul = s;
+        document
+          .querySelectorAll(".spd-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      }
+
+      // Tester render loop
+      const tCanvas = $("testerCanvas");
+      const tCtx = tCanvas.getContext("2d");
+
+      function testerLoop(ts) {
+        const dt = Math.min((ts - tLast) / 1000, 0.05);
+        tLast = ts;
+
+        const wrap = tCanvas.parentElement;
+        const tw = wrap.clientWidth,
+          th = wrap.clientHeight;
+        if (tCanvas.width !== tw || tCanvas.height !== th) {
+          tCanvas.width = tw;
+          tCanvas.height = th;
+        }
+
+        tCtx.clearRect(0, 0, tw, th);
+
+        const fy = th * 0.78;
+        const sprH = th * 0.62;
+
+        tAnim.update(dt);
+
+        // Shadow
+        tCtx.fillStyle = "rgba(0,0,0,.3)";
+        tCtx.beginPath();
+        tCtx.ellipse(tw / 2, fy + 8, sprH * 0.22, 8, 0, 0, Math.PI * 2);
+        tCtx.fill();
+
+        // Draw sprite
+        const drew = tAnim.draw(tCtx, tw / 2, fy, sprH, false, 1);
+
+        if (!drew) {
+          // Placeholder
+          tCtx.fillStyle = "rgba(255,255,255,.03)";
+          tCtx.strokeStyle = "rgba(255,255,255,.1)";
+          tCtx.lineWidth = 1;
+          tCtx.beginPath();
+          tCtx.roundRect(tw / 2 - sprH * 0.24, fy - sprH, sprH * 0.48, sprH, 8);
+          tCtx.fill();
+          tCtx.stroke();
+          tCtx.fillStyle = "rgba(255,255,255,.15)";
+          tCtx.font = "12px Share Tech Mono, monospace";
+          tCtx.textAlign = "center";
+          tCtx.fillText("upload sprite sheet", tw / 2, fy - sprH * 0.5);
+          tCtx.textAlign = "left";
+        }
+
+        // Info overlay
+        const cfg = spriteDB[tPI][tAction];
+        if (cfg.img) {
+          const fw = Math.floor(cfg.img.naturalWidth / cfg.frames);
+          $("testerInfo").innerHTML =
+            `Player: P${tPI + 1} · ${tAction.toUpperCase()}<br>` +
+            `Sheet: ${cfg.img.naturalWidth}×${cfg.img.naturalHeight}px<br>` +
+            `Frame: ${fw}×${cfg.img.naturalHeight}px<br>` +
+            `<span style="color:var(--gold)">${tAnim.frame + 1} / ${cfg.frames}</span>  ·  ${cfg.fps} fps`;
+        } else {
+          $("testerInfo").innerHTML =
+            `P${tPI + 1} · ${tAction.toUpperCase()}<br>Chưa có sprite`;
+        }
+
+        refreshStrip();
+        tRAF = requestAnimationFrame(testerLoop);
+      }
+
+      // ════════════════════════════════════════════════
+      //  SCREEN MANAGEMENT
+      // ════════════════════════════════════════════════
+      function showScreen(id) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        $(id).classList.add("active");
+        if (id !== "s-tester") {
+          cancelAnimationFrame(tRAF);
+          tRAF = null;
+        }
+      }
+
+      // ════════════════════════════════════════════════
+      //  MEDIAPIPE
+      // ════════════════════════════════════════════════
+      let handsModel = null;
+
+      function setLoad(pct, msg) {
+        $("loadBar").style.width = pct + "%";
+        $("loadStatus").textContent = msg;
+      }
+
+      async function initMediaPipe() {
+        setLoad(10, "Đang tải MediaPipe Hands...");
+        handsModel = new Hands({
+          locateFile: (f) =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
+        });
+        handsModel.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.65,
+          minTrackingConfidence: 0.55,
+        });
+        handsModel.onResults(onHandResults);
+        setLoad(40, "Đang xin quyền camera...");
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480, facingMode: "user" },
+            audio: false,
+          });
+          $("videoP1").srcObject = stream;
+          await $("videoP1").play();
+          setLoad(70, "Đang khởi động hand tracking...");
+          const cam = new Camera($("videoP1"), {
+            onFrame: async () => {
+              await handsModel.send({ image: $("videoP1") });
+            },
+            width: 640,
+            height: 480,
+          });
+          await cam.start();
+          setLoad(100, "Sẵn sàng!");
+        } catch (e) {
+          setLoad(100, "⚠ Không có camera — chạy demo mode");
+          startDemo();
+        }
+        setTimeout(() => showScreen("s-menu"), 700);
+      }
+
+      // Demo without camera
+      function startDemo() {
+        const gs = ["open", "fist", "point", "cross", "none"];
+        setInterval(() => {
+          if (!GS.running) return;
+          P[0].rawLm = fakeL(0.25 + Math.sin(Date.now() / 900) * 0.15, 0.55);
+          P[1].rawLm = fakeL(0.75 + Math.cos(Date.now() / 1100) * 0.15, 0.55);
+          P[0].gesture = gs[Math.floor(Date.now() / 2000) % gs.length];
+          P[1].gesture = gs[Math.floor(Date.now() / 2500 + 2) % gs.length];
+          applyLogic();
+          drawLm(0, P[0].rawLm);
+          drawLm(1, P[1].rawLm);
+        }, 33);
+      }
+      function fakeL(cx, cy) {
+        return Array.from({ length: 21 }, () => ({
+          x: cx + (Math.random() - 0.5) * 0.12,
+          y: cy + (Math.random() - 0.5) * 0.12,
+          z: 0,
+        }));
+      }
+
+      const HC = [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [0, 5],
+        [5, 6],
+        [6, 7],
+        [7, 8],
+        [5, 9],
+        [9, 10],
+        [10, 11],
+        [11, 12],
+        [9, 13],
+        [13, 14],
+        [14, 15],
+        [15, 16],
+        [13, 17],
+        [17, 18],
+        [18, 19],
+        [19, 20],
+        [0, 17],
+      ];
+      function drawLm(pi, lm) {
+        const cv = $("camCanvas" + (pi + 1));
+        const c = cv.getContext("2d");
+        c.clearRect(0, 0, cv.width, cv.height);
+        if (!lm) return;
+        const col = pi === 0 ? "#E24B4A" : "#378ADD";
+        c.strokeStyle = col + "99";
+        c.lineWidth = 1;
+        HC.forEach(([a, b]) => {
+          c.beginPath();
+          c.moveTo((1 - lm[a].x) * cv.width, lm[a].y * cv.height);
+          c.lineTo((1 - lm[b].x) * cv.width, lm[b].y * cv.height);
+          c.stroke();
+        });
+        lm.forEach((pt) => {
+          c.beginPath();
+          c.arc((1 - pt.x) * cv.width, pt.y * cv.height, 2, 0, Math.PI * 2);
+          c.fillStyle = col;
+          c.fill();
+        });
+      }
+
+      function classifyGesture(lm) {
+        const ext = (i) =>
+          i === 0
+            ? Math.abs(lm[4].x - lm[2].x) > 0.07
+            : lm[[4, 8, 12, 16, 20][i]].y < lm[[3, 6, 10, 14, 18][i]].y;
+        const [idx, mid, rng, pnk] = [1, 2, 3, 4].map(ext);
+        const n = [idx, mid, rng, pnk].filter(Boolean).length;
+        if (n === 0) return "fist";
+        if (n >= 4) return "open";
+        if (idx && mid && !rng && !pnk) return "cross";
+        if (idx && !mid) return "point";
+        return "open";
+      }
+
+      function onHandResults(res) {
+        if (!GS.running) return;
+        P[0].rawLm = null;
+        P[1].rawLm = null;
+        if (res.multiHandLandmarks && res.multiHandedness) {
+          res.multiHandLandmarks.forEach((lm, i) => {
+            const idx = res.multiHandedness[i].label === "Left" ? 0 : 1;
+            P[idx].rawLm = lm;
+            P[idx].gesture = classifyGesture(lm);
+            drawLm(idx, lm);
+          });
+        }
+        applyLogic();
+        updateGestHUD();
+      }
+
+      // ════════════════════════════════════════════════
+      //  GAME STATE
+      // ════════════════════════════════════════════════
+      const GS = {
+        running: false,
+        round: 1,
+        timer: 300,
+        timerInt: null,
+        totalHits: 0,
+        startTime: 0,
+      };
+      const P = [
+        {
+          x: 0,
+          hp: 100,
+          gesture: "none",
+          rawLm: null,
+          blocking: false,
+          specialCd: 0,
+          hitFlash: 0,
+          color: "#E24B4A",
+          dimColor: "rgba(226,75,74,.22)",
+          label: "P1",
+          dir: 1,
+        },
+        {
+          x: 0,
+          hp: 100,
+          gesture: "none",
+          rawLm: null,
+          blocking: false,
+          specialCd: 0,
+          hitFlash: 0,
+          color: "#378ADD",
+          dimColor: "rgba(55,138,221,.22)",
+          label: "P2",
+          dir: -1,
+        },
+      ];
+      const pCd = [0, 0];
+      const fmsgs = [];
+
+      const gCanvas = $("gameCanvas"),
+        ctx = gCanvas.getContext("2d");
+      let W = 0,
+        H = 0;
+      const FLOOR = 0.75;
+
+      function applyLogic() {
+        const now = Date.now();
+        P.forEach((p, i) => {
+          if (!p.rawLm) return;
+          if (p.gesture === "point") {
+            const tx = (1 - p.rawLm[0].x) * W;
+            p.x += (tx - p.x) * 0.18;
+          }
+          p.blocking = p.gesture === "open";
+          p.x = Math.max(40, Math.min(W - 40, p.x));
+          if (p.gesture === "fist" && now > pCd[i]) {
+            pCd[i] = now + 600;
+            if (Math.abs(p.x - P[1 - i].x) < 100)
+              dealDmg(1 - i, P[1 - i].blocking ? 6 : 15, now);
+          }
+          if (p.gesture === "cross" && now > p.specialCd) {
+            p.specialCd = now + 3000;
+            if (Math.abs(p.x - P[1 - i].x) < 140) {
+              dealDmg(1 - i, P[1 - i].blocking ? 12 : 30, now);
+              fmsg("SPECIAL!", p.x, H * FLOOR - 80, p.color);
+            }
+          }
+        });
+        if (P[0].x < P[1].x) {
+          P[0].dir = 1;
+          P[1].dir = -1;
+        } else {
+          P[0].dir = -1;
+          P[1].dir = 1;
+        }
+      }
+
+      function dealDmg(vi, dmg, now) {
+        P[vi].hp = Math.max(0, P[vi].hp - dmg);
+        P[vi].hitFlash = now + 220;
+        GS.totalHits++;
+        updateHP();
+        fmsg("-" + dmg, P[vi].x, H * FLOOR - 100, "#fff");
+        if (P[vi].hp <= 0) endRound();
+      }
+      function fmsg(t, x, y, c) {
+        fmsgs.push({ t, x, y, c, life: 1 });
+      }
+      function updateHP() {
+        $("hp1bar").style.width = P[0].hp + "%";
+        $("hp2bar").style.width = P[1].hp + "%";
+        $("hp1val").textContent = Math.round(P[0].hp);
+        $("hp2val").textContent = Math.round(P[1].hp);
+      }
+      const gL = {
+        fist: "✊ PUNCH",
+        open: "🖐 BLOCK",
+        point: "☝ MOVE",
+        cross: "🤞 SPECIAL",
+        none: "—",
+      };
+      const gD = {
+        fist: "nắm tay",
+        open: "mở tay",
+        point: "ngón trỏ",
+        cross: "2 ngón",
+        none: "no hand",
+      };
+      function updateGestHUD() {
+        [0, 1].forEach((i) => {
+          $("gact" + (i + 1)).textContent = gL[P[i].gesture] || "—";
+          $("graw" + (i + 1)).textContent = P[i].rawLm
+            ? gD[P[i].gesture]
+            : "no hand";
+        });
+      }
+
+      // ════════════════════════════════════════════════
+      //  RENDER
+      // ════════════════════════════════════════════════
+      let rafId = null,
+        lastT = 0;
+
+      function renderLoop(ts) {
+        if (!GS.running) return;
+        const dt = Math.min((ts - lastT) / 1000, 0.05);
+        lastT = ts;
+        fmsgs.forEach((m) => {
+          m.life -= dt * 1.8;
+          m.y -= dt * 55;
+        });
+        for (let i = fmsgs.length - 1; i >= 0; i--)
+          if (fmsgs[i].life <= 0) fmsgs.splice(i, 1);
+        draw(dt);
+        rafId = requestAnimationFrame(renderLoop);
+      }
+
+      function draw(dt = 0) {
+        ctx.clearRect(0, 0, W, H);
+        drawArena();
+        P.forEach((p, i) => drawFighter(p, i, dt));
+        drawFloats();
+      }
+
+      function drawArena() {
+        const fy = H * FLOOR;
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, "#05050a");
+        g.addColorStop(0.6, "#08080f");
+        g.addColorStop(1, "#0d0d18");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+        ctx.strokeStyle = "rgba(55,138,221,.05)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= W; x += 60) {
+          ctx.beginPath();
+          ctx.moveTo(x, fy);
+          ctx.lineTo(W / 2 + (x - W / 2) * 0.3, H);
+          ctx.stroke();
+        }
+        for (let y = fy; y <= H; y += 28) {
+          const f = (y - fy) / (H - fy);
+          ctx.globalAlpha = f * 0.2 + 0.03;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        const lg = ctx.createLinearGradient(0, 0, W, 0);
+        lg.addColorStop(0, "transparent");
+        lg.addColorStop(0.2, "rgba(55,138,221,.22)");
+        lg.addColorStop(0.8, "rgba(55,138,221,.22)");
+        lg.addColorStop(1, "transparent");
+        ctx.strokeStyle = lg;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, fy);
+        ctx.lineTo(W, fy);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(239,159,39,.07)";
+        ctx.setLineDash([4, 8]);
+        ctx.beginPath();
+        ctx.moveTo(W / 2, fy * 0.3);
+        ctx.lineTo(W / 2, fy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function drawFighter(p, idx, dt) {
+        if (!p.rawLm && !GS.running) return;
+        const now = Date.now(),
+          fy = H * FLOOR,
+          sprH = H * 0.42;
+        const isHurt = now < p.hitFlash;
+        const anim = animators[idx];
+
+        // Choose action
+        let action = "idle";
+        if (isHurt) action = "hurt";
+        else if (p.gesture === "fist") action = "punch";
+        else if (p.gesture === "open") action = "block";
+        else if (p.gesture === "cross") action = "special";
+        anim.setAction(action);
+        anim.update(dt);
+
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,.3)";
+        ctx.beginPath();
+        ctx.ellipse(p.x, fy + 6, sprH * 0.22, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hit flash tint
+        if (isHurt) ctx.filter = "brightness(2) saturate(.3)";
+
+        const drew = anim.draw(ctx, p.x, fy, sprH, p.dir === -1, 1);
+        ctx.filter = "none";
+
+        if (!drew) drawFallback(p, fy); // stick figure when no sprite
+
+        // Special cooldown arc
+        const cdL = Math.max(0, p.specialCd - now);
+        if (cdL > 0) {
+          const sc = H / 480,
+            fr = cdL / 3000;
+          ctx.strokeStyle = "#5DC985";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(
+            p.x,
+            fy - sprH - 0.012 * H,
+            8 * sc,
+            -Math.PI / 2,
+            -Math.PI / 2 + (1 - fr) * Math.PI * 2,
+          );
+          ctx.stroke();
+        }
+      }
+
+      function drawFallback(p, fy) {
+        const sc = H / 480,
+          col = p.color,
+          dim = p.dimColor;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 4 * sc;
+        const ls = p.gesture === "fist" ? 18 : 14;
+        ctx.beginPath();
+        ctx.moveTo(p.x, fy - 45 * sc);
+        ctx.lineTo(p.x - ls * sc, fy - 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(p.x, fy - 45 * sc);
+        ctx.lineTo(p.x + ls * sc, fy - 2);
+        ctx.stroke();
+        ctx.fillStyle = dim;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2 * sc;
+        ctx.beginPath();
+        ctx.roundRect(p.x - 16 * sc, fy - 105 * sc, 32 * sc, 60 * sc, 4);
+        ctx.fill();
+        ctx.stroke();
+        const aa = p.gesture === "fist" ? -0.7 * p.dir : 0.2,
+          al = 34 * sc;
+        const ax = p.x + Math.cos(aa) * al * p.dir,
+          ay = fy - 88 * sc + Math.sin(aa) * al;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 3.5 * sc;
+        ctx.beginPath();
+        ctx.moveTo(p.x + 14 * sc * p.dir, fy - 95 * sc);
+        ctx.lineTo(ax, ay);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(ax, ay, p.gesture === "fist" ? 7 * sc : 5 * sc, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = dim;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2 * sc;
+        ctx.beginPath();
+        ctx.arc(p.x, fy - 118 * sc, 16 * sc, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(p.x + 5 * sc * p.dir, fy - 120 * sc, 3.5 * sc, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = col;
+        ctx.font = `${Math.round(11 * sc)}px Share Tech Mono,monospace`;
+        ctx.textAlign = "center";
+        ctx.fillText(p.label, p.x, fy - 142 * sc);
+        ctx.textAlign = "left";
+      }
+
+      function drawFloats() {
+        fmsgs.forEach((m) => {
+          ctx.globalAlpha = Math.max(0, m.life);
+          ctx.fillStyle = m.c;
+          ctx.font = `bold ${Math.round((20 * H) / 480)}px Bebas Neue,sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(m.t, m.x, m.y);
+        });
+        ctx.globalAlpha = 1;
+        ctx.textAlign = "left";
+      }
+
+      // ════════════════════════════════════════════════
+      //  GAME LOOP
+      // ════════════════════════════════════════════════
+      function resizeCanvas() {
+        const a = document.querySelector(".arena");
+        if (!a) return;
+        W = a.clientWidth;
+        H = a.clientHeight;
+        gCanvas.width = W;
+        gCanvas.height = H;
+      }
+      window.addEventListener("resize", resizeCanvas);
+
+      function startTimer() {
+        clearInterval(GS.timerInt);
+        GS.timer = 300;
+        $("hudTimer").classList.remove("warn");
+        $("hudTimer").textContent = 300;
+        GS.timerInt = setInterval(() => {
+          GS.timer--;
+          $("hudTimer").textContent = GS.timer;
+          if (GS.timer <= 10) $("hudTimer").classList.add("warn");
+          if (GS.timer <= 0) {
+            clearInterval(GS.timerInt);
+            endRound();
+          }
+        }, 1000);
+      }
+
+      function startGame() {
+        resizeCanvas();
+        P[0].hp = 100;
+        P[0].x = W * 0.28;
+        P[0].gesture = "none";
+        P[0].rawLm = null;
+        P[0].specialCd = 0;
+        P[0].hitFlash = 0;
+        P[1].hp = 100;
+        P[1].x = W * 0.72;
+        P[1].gesture = "none";
+        P[1].rawLm = null;
+        P[1].specialCd = 0;
+        P[1].hitFlash = 0;
+        pCd[0] = 0;
+        pCd[1] = 0;
+        fmsgs.length = 0;
+        GS.totalHits = 0;
+        GS.running = true;
+        GS.startTime = Date.now();
+        animators[0].frame = 0;
+        animators[1].frame = 0;
+        updateHP();
+        $("roundLabel").textContent = "ROUND " + GS.round;
+        showScreen("s-game");
+        cancelAnimationFrame(rafId);
+        lastT = performance.now();
+        rafId = requestAnimationFrame(renderLoop);
+        startTimer();
+      }
+
+      function endRound() {
+        GS.running = false;
+        clearInterval(GS.timerInt);
+        cancelAnimationFrame(rafId);
+        draw();
+        const el = Math.round((Date.now() - GS.startTime) / 1000),
+          h1 = Math.round(P[0].hp),
+          h2 = Math.round(P[1].hp);
+        let win = "DRAW",
+          tag = "DRAW!";
+        if (h1 > 0 && h1 > h2) {
+          win = "PLAYER 1 WINS";
+          tag = GS.timer <= 0 ? "TIME OVER!" : "KO!";
+        } else if (h2 > 0 && h2 > h1) {
+          win = "PLAYER 2 WINS";
+          tag = GS.timer <= 0 ? "TIME OVER!" : "KO!";
+        }
+        $("reTag").textContent = tag;
+        $("reBanner").textContent = win;
+        $("reSub").textContent = win;
+        $("rs1").textContent = h1;
+        $("rs2").textContent = h2;
+        $("rs3").textContent = el + "s";
+        $("rs4").textContent = GS.totalHits;
+        setTimeout(() => showScreen("s-roundend"), 400);
+      }
+
+      // Keyboard fallback
+      const keys = {};
+      window.addEventListener("keydown", (e) => {
+        keys[e.key] = true;
+        if (!GS.running) return;
+        if (e.key === "f" || e.key === "F") {
+          P[0].gesture = "fist";
+          P[0].rawLm = P[0].rawLm || [{ x: 0.5, y: 0.5, z: 0 }];
+          setTimeout(() => {
+            if (P[0].gesture === "fist") P[0].gesture = "none";
+          }, 300);
+        }
+        if (e.key === "l" || e.key === "L") {
+          P[1].gesture = "fist";
+          P[1].rawLm = P[1].rawLm || [{ x: 0.5, y: 0.5, z: 0 }];
+          setTimeout(() => {
+            if (P[1].gesture === "fist") P[1].gesture = "none";
+          }, 300);
+        }
+        if (e.key === "g" || e.key === "G") {
+          P[0].gesture = "cross";
+          setTimeout(() => (P[0].gesture = "none"), 300);
+        }
+        if (e.key === ";") {
+          P[1].gesture = "cross";
+          setTimeout(() => (P[1].gesture = "none"), 300);
+        }
+      });
+      window.addEventListener("keyup", (e) => delete keys[e.key]);
+      setInterval(() => {
+        if (!GS.running) return;
+        const sp = 4;
+        if (keys["a"] || keys["A"]) {
+          P[0].x -= sp;
+          P[0].rawLm = P[0].rawLm || [{}];
+          P[0].gesture = "point";
+        }
+        if (keys["d"] || keys["D"]) {
+          P[0].x += sp;
+          P[0].rawLm = P[0].rawLm || [{}];
+          P[0].gesture = "point";
+        }
+        if (keys["ArrowLeft"]) {
+          P[1].x -= sp;
+          P[1].rawLm = P[1].rawLm || [{}];
+          P[1].gesture = "point";
+        }
+        if (keys["ArrowRight"]) {
+          P[1].x += sp;
+          P[1].rawLm = P[1].rawLm || [{}];
+          P[1].gesture = "point";
+        }
+        if (keys["s"] || keys["S"]) P[0].gesture = "open";
+        if (keys["ArrowDown"]) P[1].gesture = "open";
+        P[0].x = Math.max(40, Math.min(W - 40, P[0].x));
+        P[1].x = Math.max(40, Math.min(W - 40, P[1].x));
+        applyLogic();
+      }, 16);
+
+      window.addEventListener("load", () => {
+        resizeCanvas();
+        initMediaPipe();
+      });
+    </script>
+  </body>
+</html>
