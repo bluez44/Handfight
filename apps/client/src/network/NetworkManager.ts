@@ -18,6 +18,7 @@ export class NetworkManager {
   onFrameData?: (data: FrameData) => void;
   onRemoteStream?: (stream: MediaStream) => void;
   onDisconnected?: () => void;
+  onPlayerLeft?: () => void;
 
   constructor(serverUrl: string) {
     this.serverUrl = serverUrl;
@@ -37,6 +38,10 @@ export class NetworkManager {
   }
 
   private setupSocketListeners() {
+    this.socket.on("room:playerLeft", () => {
+      this.onPlayerLeft?.();
+    });
+
     this.socket.on("room:ready", ({ roomCode, initiator }) => {
       this.roomCode = roomCode;
       this.isInitiator = initiator === this.socket.id;

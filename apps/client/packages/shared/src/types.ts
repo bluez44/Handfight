@@ -1,11 +1,11 @@
-// Dữ liệu gửi qua WebRTC mỗi frame (~50 bytes)
+// Dữ liệu gửi qua WebRTC mỗi frame (~60 bytes)
 export interface FrameData {
-  ts: number; // timestamp
-  wrist: [number, number]; // [x, y] normalized 0-1
-  gesture: GestureType; // action đã classify sẵn
+  ts: number;
+  wrist: [number, number]; // normalized wrist [x, y] in image space
+  gesture: string;         // Gesture value from handPose utils
+  normX: number;           // box x normalised to sender's viewport width  (0-1)
+  normY: number;           // box y normalised to sender's viewport height (0-1)
 }
-
-export type GestureType = 'idle' | 'punch' | 'block' | 'special' | 'move';
 
 // Signaling messages qua Socket.io
 export interface RoomJoinPayload {
