@@ -6,6 +6,9 @@ export class NetworkManager {
   private socket: Socket;
   private peer: Peer | null = null;
   private conn: any | null = null;
+  private outgoingCall: any | null = null;
+  private incomingCall: any | null = null;
+  private localStream: MediaStream | null = null;
   private serverUrl: string;
   private roomCode: string | null = null;
   private isInitiator = false;
@@ -13,6 +16,7 @@ export class NetworkManager {
 
   onConnected?: () => void;
   onFrameData?: (data: FrameData) => void;
+  onRemoteStream?: (stream: MediaStream) => void;
   onDisconnected?: () => void;
 
   constructor(serverUrl: string) {
@@ -44,6 +48,7 @@ export class NetworkManager {
       if (!this.isInitiator) return;
       this.remotePeerId = peerId;
       // Connect now if our Peer is already open; otherwise the open handler will do it
+      this.tryStartOutgoingCall();
       if (this.peer?.open) {
         this.setupDataConnection(this.peer.connect(peerId));
       }
@@ -61,6 +66,7 @@ export class NetworkManager {
       if (this.isInitiator && this.remotePeerId) {
         this.setupDataConnection(this.peer!.connect(this.remotePeerId));
       }
+      this.tryStartOutgoingCall();
     });
 
     // Receiver waits for the initiator to connect
@@ -68,9 +74,63 @@ export class NetworkManager {
       this.peer.on("connection", (conn) => {
         this.setupDataConnection(conn);
       });
+
+      this.peer.on("call", (call) => {
+        this.incomingCall = call;
+        this.answerIncomingCall();
+      });
     }
 
     this.peer.on("error", (err) => console.error("[P2P]", err));
+  }
+
+  setLocalStream(stream: MediaStream) {
+    this.localStream = stream;
+    this.tryStartOutgoingCall();
+    this.answerIncomingCall();
+  }
+
+  private tryStartOutgoingCall() {
+    if (
+      !this.isInitiator ||
+      !this.peer?.open ||
+      !this.remotePeerId ||
+      !this.localStream
+    ) {
+      return;
+    }
+
+    if (this.outgoingCall) {
+      return;
+    }
+
+    this.outgoingCall = this.peer.call(this.remotePeerId, this.localStream);
+    this.setupMediaConnection(this.outgoingCall);
+  }
+
+  private answerIncomingCall() {
+    if (this.isInitiator || !this.incomingCall || !this.localStream) {
+      return;
+    }
+
+    this.incomingCall.answer(this.localStream);
+    this.setupMediaConnection(this.incomingCall);
+    this.incomingCall = null;
+  }
+
+  private setupMediaConnection(call: any) {
+    call.on("stream", (stream: MediaStream) => {
+      this.onRemoteStream?.(stream);
+    });
+
+    call.on("close", () => {
+      if (this.outgoingCall === call) {
+        this.outgoingCall = null;
+      }
+      this.onDisconnected?.();
+    });
+
+    call.on("error", (err: unknown) => console.error("[P2P] call:", err));
   }
 
   private setupDataConnection(conn: any) {
@@ -81,13 +141,13 @@ export class NetworkManager {
       this.onConnected?.();
     });
 
-    conn.on("data", (raw) => {
+    conn.on("data", (raw: unknown) => {
       const data: FrameData = JSON.parse(raw as string);
       this.onFrameData?.(data);
     });
 
     conn.on("close", () => this.onDisconnected?.());
-    conn.on("error", (err) => console.error("[P2P] conn:", err));
+    conn.on("error", (err: unknown) => console.error("[P2P] conn:", err));
   }
 
   sendFrame(data: FrameData) {
@@ -97,6 +157,8 @@ export class NetworkManager {
   }
 
   disconnect() {
+    this.outgoingCall?.close?.();
+    this.incomingCall?.close?.();
     this.peer?.destroy();
     this.socket.disconnect();
   }
