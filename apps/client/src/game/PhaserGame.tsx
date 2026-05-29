@@ -21,8 +21,8 @@ export function PhaserGame({
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef      = useRef<Phaser.Game | null>(null);
 
-  const [localHp,  setLocalHp]  = useState(GAME.MAX_HP);
-  const [remoteHp, setRemoteHp] = useState(GAME.MAX_HP);
+  const [localHp,  setLocalHp]  = useState<number>(GAME.MAX_HP);
+  const [remoteHp, setRemoteHp] = useState<number>(GAME.MAX_HP);
   const [winner, setWinner]     = useState<"local" | "remote" | null>(null);
 
   // Stable bridge object — properties mutated in place so Phaser always reads
@@ -39,11 +39,11 @@ export function PhaserGame({
   // Update mutable bridge fields on every render
   bridgeRef.current.onSendFrame  = onSendFrame;
   bridgeRef.current.isConnected  = () => isConnected;
-  bridgeRef.current.onHpChange   = (lHp, rHp) => {
+  bridgeRef.current.onHpChange   = (lHp: number, rHp: number) => {
     setLocalHp(lHp);
     setRemoteHp(rHp);
   };
-  bridgeRef.current.onGameOver   = (w) => setWinner(w);
+  bridgeRef.current.onGameOver   = (w: "local" | "remote") => setWinner(w);
 
   // Mount Phaser once
   useEffect(() => {

@@ -45,8 +45,8 @@ export class GameScene extends Phaser.Scene {
   private rx = 0; private ry = 0;
 
   // Game state
-  private localHp  = GAME.MAX_HP;
-  private remoteHp = GAME.MAX_HP;
+  private localHp: number  = GAME.MAX_HP;
+  private remoteHp: number = GAME.MAX_HP;
   private prevLocalGesture  = "none";
   private prevRemoteGesture = "none";
   private hitCooldown = 0;
