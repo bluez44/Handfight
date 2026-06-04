@@ -51,9 +51,10 @@ export class NetworkManager {
     // Receive the remote player's PeerJS ID — only the initiator connects
     this.socket.on("peer:id", ({ peerId }: { peerId: string }) => {
       if (!this.isInitiator) return;
+      if (peerId === this.peer?.id) return;
       this.remotePeerId = peerId;
-      // Connect now if our Peer is already open; otherwise the open handler will do it
       this.tryStartOutgoingCall();
+      // Data channel: connect now if peer is already open; otherwise the open handler will do it
       if (this.peer?.open) {
         this.setupDataConnection(this.peer.connect(peerId));
       }
