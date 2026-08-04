@@ -6,7 +6,9 @@ import {
   FilesetResolver,
   DrawingUtils,
 } from "@mediapipe/tasks-vision";
-import type { FrameData, GestureType } from "../packages/shared/src/types";
+import type { FrameData } from "../packages/shared/src/types";
+
+export type GestureType = "punch" | "block" | "move" | "special" | "idle";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Screen = "title" | "lobby" | "game" | "result";
@@ -199,6 +201,9 @@ export default function App() {
               ts: Date.now(),
               wrist: [wrist.x, wrist.y],
               gesture,
+              normX: 0.5,
+              normY: 0.5,
+              hp: p1Health.current,
             });
           }
         }
@@ -239,7 +244,7 @@ export default function App() {
 
   // ─── Process incoming opponent frame ───────────────────────────────────
   const handleRemoteFrame = useCallback((data: FrameData) => {
-    setP2State((prev) => ({ ...prev, gesture: data.gesture }));
+    setP2State((prev) => ({ ...prev, gesture: data.gesture as GestureType }));
 
     // Simple damage model
     if (data.gesture === "punch") {

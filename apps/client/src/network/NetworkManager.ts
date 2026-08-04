@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import Peer, { DataConnection } from "peerjs";
+import Peer, { type DataConnection } from "peerjs";
 import type { FrameData } from "../../packages/shared/src/types";
 
 export class NetworkManager {
@@ -14,6 +14,10 @@ export class NetworkManager {
   onConnected?: () => void;
   onFrameData?: (data: FrameData) => void;
   onDisconnected?: () => void;
+  onPlayerLeft?: () => void;
+  onRemoteStream?: (stream: MediaStream) => void;
+
+  setLocalStream(_stream: MediaStream) {}
 
   constructor(serverUrl: string) {
     this.serverUrl = serverUrl;
@@ -81,7 +85,7 @@ export class NetworkManager {
       this.onConnected?.();
     });
 
-    conn.on("data", (raw: string) => {
+    conn.on("data", (raw: unknown) => {
       const data: FrameData = JSON.parse(raw as string);
       this.onFrameData?.(data);
     });
