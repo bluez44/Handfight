@@ -483,34 +483,47 @@
   pointer-events: none;
 }
 
-.fighter-avatar {
+.fighter-sprite {
   position: absolute;
   bottom: 10%;
-  width: min(300px, 35vw);
-  height: auto;
-  object-fit: cover;
+  width: 320px;
+  height: 320px;
+  background-size: 300% 300%; /* Default assuming a 3x3 grid */
+  background-repeat: no-repeat;
   border-radius: var(--radius-md);
   box-shadow: 0 20px 50px rgba(0,0,0,0.8);
   transition: transform 0.1s ease-out, filter 0.2s;
+  
+  /* You can adjust these variables to match the exact grid cells */
+  --pos-idle: 0% 0%;
+  --pos-punch: 50% 0%;
+  --pos-block: 0% 50%;
+  --pos-none: 100% 100%;
 }
-.fighter-avatar.p1 {
+.fighter-sprite.p1 {
   left: 10%;
+  background-image: url("/assets/sprites/fighter_p1.jpg");
   border: 2px solid var(--clr-p1);
   box-shadow: 0 0 30px var(--clr-p1-glow);
 }
-.fighter-avatar.p2 {
+.fighter-sprite.p2 {
   right: 10%;
+  transform: scaleX(-1);
+  background-image: url("/assets/sprites/fighter_p2.jpg");
   border: 2px solid var(--clr-p2);
   box-shadow: 0 0 30px var(--clr-p2-glow);
-  transform: scaleX(-1);
 }
 
-.fighter-avatar.punch { transform: translateX(40px) scale(1.05); z-index: 5; }
-.fighter-avatar.p2.punch { transform: translateX(-40px) scale(1.05) scaleX(-1); z-index: 5; }
-.fighter-avatar.block { filter: brightness(0.6) sepia(1) hue-rotate(180deg); transform: scale(0.95); }
-.fighter-avatar.p2.block { filter: brightness(0.6) sepia(1) hue-rotate(300deg); transform: scale(0.95) scaleX(-1); }
-.fighter-avatar.move { transform: translateY(-20px); }
-.fighter-avatar.p2.move { transform: translateY(-20px) scaleX(-1); }
+/* Actions mapped to background-positions */
+.fighter-sprite.idle  { background-position: var(--pos-idle); }
+.fighter-sprite.punch { background-position: var(--pos-punch); transform: scale(1.1) translateX(20px); z-index: 5; }
+.fighter-sprite.block { background-position: var(--pos-block); filter: brightness(0.8) contrast(1.2); }
+.fighter-sprite.none  { background-position: var(--pos-none); filter: brightness(0.5); }
+.fighter-sprite.move  { background-position: var(--pos-idle); transform: translateY(-20px); }
+
+/* Ensure p2's transforms take into account its flipped state */
+.fighter-sprite.p2.punch { transform: scaleX(-1) scale(1.1) translateX(20px); z-index: 5; }
+.fighter-sprite.p2.move  { transform: scaleX(-1) translateY(-20px); }
 
 .input_video {
   display: block;

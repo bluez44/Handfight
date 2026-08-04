@@ -390,16 +390,8 @@ export default function App() {
         <img src="/assets/arena_bg.jpg" alt="Arena" className="arena-bg" />
         
         <div className="fighters-container">
-          <img 
-            src="/assets/sprites/fighter_p1.jpg" 
-            alt="P1" 
-            className={`fighter-avatar p1 ${p1State.gesture}`} 
-          />
-          <img 
-            src="/assets/sprites/fighter_p2.jpg" 
-            alt="P2" 
-            className={`fighter-avatar p2 ${p2State.gesture}`} 
-          />
+          <div className={`fighter-sprite p1 ${p1State.gesture}`} />
+          <div className={`fighter-sprite p2 ${p2State.gesture}`} />
         </div>
 
         <div className="camera-container">
