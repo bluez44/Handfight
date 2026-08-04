@@ -29,9 +29,7 @@ const GESTURE_COLOR: Record<string, number> = {
   ok:          0xef9f27,
   pinch:       0xef9f27,
 };
-const DEFAULT_COLOR      = 0x191924;
-const REMOTE_COLOR       = 0x1e3a5f;
-const REMOTE_FIST_COLOR  = 0x378add;
+
 const JUMP_TRIGGERS      = new Set(["thumbs_up", "point"]);
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
@@ -53,13 +51,23 @@ export class GameScene extends Phaser.Scene {
   private gameOver    = false;
 
   // Visuals
-  private localBox!:  Phaser.GameObjects.Rectangle;
-  private remoteBox!: Phaser.GameObjects.Rectangle;
+  private localSprite!:  Phaser.GameObjects.Sprite;
+  private remoteSprite!: Phaser.GameObjects.Sprite;
   private hitFlash!:  Phaser.GameObjects.Rectangle;
 
   constructor() { super({ key: "GameScene" }); }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  preload() {
+    const asset = (name: string) => `assets/sprites/male_hero_template-${name}.png`;
+    this.load.spritesheet('hero_idle', asset('idle'), { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('hero_walk', asset('walk'), { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('hero_run', asset('run'), { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('hero_jump', asset('jump'), { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('hero_fall', asset('fall'), { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('hero_combo_1', asset('combo_1'), { frameWidth: 128, frameHeight: 128 });
+  }
 
   create() {
     const { width: W, height: H } = this.scale;
@@ -72,9 +80,20 @@ export class GameScene extends Phaser.Scene {
     // Floor line
     this.add.rectangle(W / 2, floorY, W, 2, 0x2a2a38).setOrigin(0.5, 0);
 
-    // Player boxes
-    this.localBox  = this.add.rectangle(this.lx, this.ly, S, S, 0xe24b4a).setOrigin(0);
-    this.remoteBox = this.add.rectangle(this.rx, this.ry, S, S, REMOTE_COLOR).setOrigin(0).setVisible(false);
+    // Animations
+    const createAnim = (key: string, repeat = -1, frameRate = 10) => {
+      this.anims.create({ key, frames: this.anims.generateFrameNumbers(key, {}), frameRate, repeat });
+    };
+    createAnim('hero_idle');
+    createAnim('hero_walk');
+    createAnim('hero_run', -1, 15);
+    createAnim('hero_jump', 0, 10);
+    createAnim('hero_fall', -1, 10);
+    createAnim('hero_combo_1', 0, 15);
+
+    // Player sprites
+    this.localSprite  = this.add.sprite(this.lx + S/2, this.ly + S, 'hero_idle').setOrigin(0.5, 1);
+    this.remoteSprite = this.add.sprite(this.rx + S/2, this.ry + S, 'hero_idle').setOrigin(0.5, 1).setVisible(false);
 
     // Hit flash overlay (starts invisible)
     this.hitFlash  = this.add.rectangle(0, 0, S, S, 0xffffff, 1).setOrigin(0).setAlpha(0);
@@ -121,11 +140,13 @@ export class GameScene extends Phaser.Scene {
     }
     this.prevLocalGesture = lg;
 
+    const oldLx = this.lx;
     // Horizontal — mirror wrist, LERP, apply knockback
     const targetLX = (1 - input.wrist[0]) * W - GAME.PLAYER_SIZE / 2;
     this.lx += (targetLX - this.lx) * GAME.MOVE_LERP;
     this.lx += this.lknockX * dt;
     this.lknockX *= Math.max(0, 1 - GAME.KNOCKBACK_DECAY * dt);
+    const ldx = (this.lx - oldLx) / dt; // velocity x
 
     // Vertical
     if (!this.lonFloor) {
@@ -137,8 +158,21 @@ export class GameScene extends Phaser.Scene {
     }
     this.lx = Phaser.Math.Clamp(this.lx, 0, W - GAME.PLAYER_SIZE);
 
-    this.localBox.setPosition(this.lx, this.ly);
-    this.localBox.setFillStyle(GESTURE_COLOR[lg] ?? DEFAULT_COLOR);
+    this.localSprite.setPosition(this.lx + GAME.PLAYER_SIZE/2, this.ly + GAME.PLAYER_SIZE);
+
+    // Animation resolving
+    const resolveAnim = (gesture: string, onFloor: boolean, vy: number, dx: number) => {
+      if (gesture === "fist") return "hero_combo_1";
+      if (!onFloor) return vy < 0 ? "hero_jump" : "hero_fall";
+      if (Math.abs(dx) > 150) return "hero_run";
+      if (Math.abs(dx) > 20) return "hero_walk";
+      return "hero_idle";
+    };
+    
+    this.localSprite.play(resolveAnim(lg, this.lonFloor, this.lvy, ldx), true);
+    
+    // Tint to signify local color vs default (optional, could just use default)
+    this.localSprite.setTint(GESTURE_COLOR[lg] ?? 0xffffff);
 
     // Send frame with current HP
     if (bridge.isConnected()) {
@@ -154,7 +188,7 @@ export class GameScene extends Phaser.Scene {
 
     // ── Remote player ────────────────────────────────────────────────────────
     const connected = bridge.isConnected();
-    this.remoteBox.setVisible(connected);
+    this.remoteSprite.setVisible(connected);
     if (!connected) return;
 
     const frame = bridge.remoteFrameRef.current;
@@ -172,17 +206,43 @@ export class GameScene extends Phaser.Scene {
       }
 
       // Smooth remote position
+      const oldRx = this.rx;
       this.rx += (frame.normX * W - this.rx) * GAME.REMOTE_LERP;
       this.ry += (frame.normY * H - this.ry) * GAME.REMOTE_LERP;
+      const rdx = (this.rx - oldRx) / dt;
 
       bridge.onHpChange(this.localHp, this.remoteHp);
+      
+      this.rx = Phaser.Math.Clamp(this.rx, 0, W - GAME.PLAYER_SIZE);
+      this.ry = Phaser.Math.Clamp(this.ry, 0, H - GAME.PLAYER_SIZE);
+      this.remoteSprite.setPosition(this.rx + GAME.PLAYER_SIZE/2, this.ry + GAME.PLAYER_SIZE);
+
+      const rg = frame.gesture ?? "none";
+      const ronFloor = this.ry >= floorTop - 2; // rough estimation
+      // We don't have remote vy directly, we can estimate it or just use ry diff
+      // For simplicity, just check floor
+      const rAnim = rg === "fist" ? "hero_combo_1" :
+                    !ronFloor ? "hero_jump" :
+                    Math.abs(rdx) > 150 ? "hero_run" :
+                    Math.abs(rdx) > 20 ? "hero_walk" : "hero_idle";
+      
+      this.remoteSprite.play(rAnim, true);
+      this.remoteSprite.setTint(rg === "fist" ? 0xffaaaa : 0xaaaaaa);
+    } else {
+      this.remoteSprite.play("hero_idle", true);
+      this.remoteSprite.setTint(0xaaaaaa);
     }
-    this.rx = Phaser.Math.Clamp(this.rx, 0, W - GAME.PLAYER_SIZE);
-    this.ry = Phaser.Math.Clamp(this.ry, 0, H - GAME.PLAYER_SIZE);
-    this.remoteBox.setPosition(this.rx, this.ry);
+    
+    // Facing direction
+    if (this.lx <= this.rx) {
+      this.localSprite.setFlipX(false);
+      this.remoteSprite.setFlipX(true);
+    } else {
+      this.localSprite.setFlipX(true);
+      this.remoteSprite.setFlipX(false);
+    }
 
     const rg = frame?.gesture ?? "none";
-    this.remoteBox.setFillStyle(rg === "fist" ? REMOTE_FIST_COLOR : REMOTE_COLOR);
 
     // ── Combat — detect incoming punch ───────────────────────────────────────
     this.hitCooldown = Math.max(0, this.hitCooldown - delta);
