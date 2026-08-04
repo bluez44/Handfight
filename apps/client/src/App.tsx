@@ -466,7 +466,7 @@ export default function App() {
       </div>
 
       {/* ── Game Screen ── */}
-      <div className={`game-screen${screen !== "game" ? " hidden" : ""}`}>
+      <div className={`screen game-screen${screen !== "game" ? " hidden" : ""}`}>
         {/* HUD */}
         <div className="hud">
           <div className="health-section p1">
