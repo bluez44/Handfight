@@ -21,7 +21,11 @@ interface PlayerState {
 }
 
 // ─── Audio Manager ────────────────────────────────────────────────────────────
-const AudioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+const AudioCtx = new (
+  window.AudioContext ||
+  (window as unknown as { webkitAudioContext: typeof AudioContext })
+    .webkitAudioContext
+)();
 const audioCache: Record<string, AudioBuffer> = {};
 
 async function loadSound(url: string): Promise<AudioBuffer | null> {
@@ -52,29 +56,32 @@ function playSound(url: string, volume = 0.6) {
 
 // Preload all SFX
 const SFX = {
-  punch:     "/assets/audio/punch.mp3",
-  kick:      "/assets/audio/kick.mp3",
-  hit:       "/assets/audio/hit.mp3",
-  win:       "/assets/audio/win.mp3",
+  punch: "/assets/audio/punch.mp3",
+  kick: "/assets/audio/kick.mp3",
+  hit: "/assets/audio/hit.mp3",
+  win: "/assets/audio/win.mp3",
   countdown: "/assets/audio/countdown.mp3",
 };
 Object.values(SFX).forEach(loadSound);
 
 // ─── Gesture Classifier ────────────────────────────────────────────────────
-function classifyGesture(landmarks: { x: number; y: number; z: number }[]): GestureType {
+function classifyGesture(
+  landmarks: { x: number; y: number; z: number }[],
+): GestureType {
   if (!landmarks || landmarks.length < 21) return "idle";
 
-  const wrist       = landmarks[0];
-  const indexTip    = landmarks[8];
-  const middleTip   = landmarks[12];
-  const ringTip     = landmarks[16];
-  const pinkyTip    = landmarks[20];
-  const indexMcp    = landmarks[5];
-  const middleMcp   = landmarks[9];
-  const ringMcp     = landmarks[13];
-  const pinkyMcp    = landmarks[17];
+  const wrist = landmarks[0];
+  const indexTip = landmarks[8];
+  const middleTip = landmarks[12];
+  const ringTip = landmarks[16];
+  const pinkyTip = landmarks[20];
+  const indexMcp = landmarks[5];
+  const middleMcp = landmarks[9];
+  const ringMcp = landmarks[13];
+  const pinkyMcp = landmarks[17];
 
-  const fingersTucked = (tip: { y: number }, mcp: { y: number }) => tip.y > mcp.y;
+  const fingersTucked = (tip: { y: number }, mcp: { y: number }) =>
+    tip.y > mcp.y;
 
   const allTucked =
     fingersTucked(indexTip, indexMcp) &&
@@ -87,10 +94,10 @@ function classifyGesture(landmarks: { x: number; y: number; z: number }[]): Gest
 
   // Open palm (all fingers extended)
   const allExtended =
-    indexTip.y  < indexMcp.y  &&
+    indexTip.y < indexMcp.y &&
     middleTip.y < middleMcp.y &&
-    ringTip.y   < ringMcp.y   &&
-    pinkyTip.y  < pinkyMcp.y;
+    ringTip.y < ringMcp.y &&
+    pinkyTip.y < pinkyMcp.y;
 
   if (allExtended) return "block";
 
@@ -102,44 +109,53 @@ function classifyGesture(landmarks: { x: number; y: number; z: number }[]): Gest
 }
 
 // ─── Gesture meta ─────────────────────────────────────────────────────────────
-const GESTURE_META: Record<GestureType, { icon: string; label: string; color: string }> = {
-  punch:   { icon: "👊", label: "PUNCH",  color: "var(--clr-p2)" },
-  block:   { icon: "🛡️", label: "BLOCK",  color: "var(--clr-p1)" },
-  move:    { icon: "🏃", label: "MOVE",   color: "var(--clr-accent)" },
+const GESTURE_META: Record<
+  GestureType,
+  { icon: string; label: string; color: string }
+> = {
+  punch: { icon: "👊", label: "PUNCH", color: "var(--clr-p2)" },
+  block: { icon: "🛡️", label: "BLOCK", color: "var(--clr-p1)" },
+  move: { icon: "🏃", label: "MOVE", color: "var(--clr-accent)" },
   special: { icon: "⚡", label: "SPECIAL", color: "#a020f0" },
-  idle:    { icon: "✋", label: "IDLE",   color: "var(--clr-text-dim)" },
+  idle: { icon: "✋", label: "IDLE", color: "var(--clr-text-dim)" },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen,       setScreen]       = useState<Screen>("title");
-  const [roomCode,     setRoomCode]     = useState<string | null>(null);
-  const [joinInput,    setJoinInput]    = useState("");
-  const [showJoin,     setShowJoin]     = useState(false);
-  const [connStatus,   setConnStatus]   = useState<ConnStatus>("disconnected");
-  const [p1State,      setP1State]      = useState<PlayerState>({ health: 100, gesture: "idle" });
-  const [p2State,      setP2State]      = useState<PlayerState>({ health: 100, gesture: "idle" });
-  const [timer,        setTimer]        = useState(99);
-  const [round,        ]                = useState(1);
-  const [result,       setResult]       = useState<ResultOutcome | null>(null);
-  const [showSplash,   setShowSplash]   = useState(false);
-  const [isHost,       setIsHost]       = useState(false);
+  const [screen, setScreen] = useState<Screen>("title");
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [joinInput, setJoinInput] = useState("");
+  const [showJoin, setShowJoin] = useState(false);
+  const [connStatus, setConnStatus] = useState<ConnStatus>("disconnected");
+  const [p1State, setP1State] = useState<PlayerState>({
+    health: 100,
+    gesture: "idle",
+  });
+  const [p2State, setP2State] = useState<PlayerState>({
+    health: 100,
+    gesture: "idle",
+  });
+  const [timer, setTimer] = useState(99);
+  const [round] = useState(1);
+  const [result, setResult] = useState<ResultOutcome | null>(null);
+  const [showSplash, setShowSplash] = useState(false);
+  const [isHost, setIsHost] = useState(false);
 
-  const net          = useRef<NetworkManager | null>(null);
-  const videoRef     = useRef<HTMLVideoElement>(null);
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const net = useRef<NetworkManager | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const landmarkerRef = useRef<HandLandmarker | null>(null);
-  const animRef      = useRef<number>(0);
-  const timerRef     = useRef<number | null>(null);
-  const p1Health     = useRef(100);
-  const p2Health     = useRef(100);
+  const animRef = useRef<number>(0);
+  const timerRef = useRef<number | null>(null);
+  const p1Health = useRef(100);
+  const p2Health = useRef(100);
 
   // ─── MediaPipe Init ─────────────────────────────────────────────────────
   const initCamera = useCallback(async () => {
     if (AudioCtx.state === "suspended") await AudioCtx.resume();
 
     const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
     );
     const hl = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
@@ -150,8 +166,8 @@ export default function App() {
       runningMode: "VIDEO",
       numHands: 2,
       minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence:  0.5,
-      minTrackingConfidence:      0.5,
+      minHandPresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5,
     });
     landmarkerRef.current = hl;
 
@@ -163,8 +179,8 @@ export default function App() {
     await video.play();
 
     const canvas = canvasRef.current!;
-    const ctx    = canvas.getContext("2d")!;
-    const draw   = new DrawingUtils(ctx);
+    const ctx = canvas.getContext("2d")!;
+    const draw = new DrawingUtils(ctx);
     let lastTime = -1;
 
     const loop = () => {
@@ -235,26 +251,29 @@ export default function App() {
         // Time up — compare health
         const p1hp = p1Health.current;
         const p2hp = p2Health.current;
-        if (p1hp > p2hp)      endGame("win");
+        if (p1hp > p2hp) endGame("win");
         else if (p2hp > p1hp) endGame("lose");
-        else                  endGame("draw");
+        else endGame("draw");
       }
     }, 1000);
   }, [endGame]);
 
   // ─── Process incoming opponent frame ───────────────────────────────────
-  const handleRemoteFrame = useCallback((data: FrameData) => {
-    setP2State((prev) => ({ ...prev, gesture: data.gesture as GestureType }));
+  const handleRemoteFrame = useCallback(
+    (data: FrameData) => {
+      setP2State((prev) => ({ ...prev, gesture: data.gesture as GestureType }));
 
-    // Simple damage model
-    if (data.gesture === "punch") {
-      const dmg = 8;
-      p1Health.current = Math.max(0, p1Health.current - dmg);
-      setP1State((prev) => ({ ...prev, health: p1Health.current }));
-      playSound(SFX.hit, 0.6);
-      if (p1Health.current <= 0) endGame("lose");
-    }
-  }, [endGame]);
+      // Simple damage model
+      if (data.gesture === "punch") {
+        const dmg = 8;
+        p1Health.current = Math.max(0, p1Health.current - dmg);
+        setP1State((prev) => ({ ...prev, health: p1Health.current }));
+        playSound(SFX.hit, 0.6);
+        if (p1Health.current <= 0) endGame("lose");
+      }
+    },
+    [endGame],
+  );
 
   // Apply local punch damage to opponent
   useEffect(() => {
@@ -272,10 +291,12 @@ export default function App() {
   const handleCreateRoom = async () => {
     if (AudioCtx.state === "suspended") await AudioCtx.resume();
     setConnStatus("connecting");
-    const manager = new NetworkManager("http://localhost:3000");
+    const manager = new NetworkManager(
+      import.meta.env.VITE_API_URL || "http://localhost:3000",
+    );
     net.current = manager;
 
-    manager.onConnected    = () => {
+    manager.onConnected = () => {
       setConnStatus("connected");
       setScreen("game");
       p1Health.current = 100;
@@ -287,7 +308,7 @@ export default function App() {
       startGameTimer();
       initCamera();
     };
-    manager.onFrameData    = handleRemoteFrame;
+    manager.onFrameData = handleRemoteFrame;
     manager.onDisconnected = () => {
       setConnStatus("disconnected");
     };
@@ -303,10 +324,12 @@ export default function App() {
     if (!code) return;
     if (AudioCtx.state === "suspended") await AudioCtx.resume();
     setConnStatus("connecting");
-    const manager = new NetworkManager("http://localhost:3000");
+    const manager = new NetworkManager(
+      import.meta.env.VITE_API_URL || "http://localhost:3000",
+    );
     net.current = manager;
 
-    manager.onConnected    = () => {
+    manager.onConnected = () => {
       setConnStatus("connected");
       setScreen("game");
       p1Health.current = 100;
@@ -318,7 +341,7 @@ export default function App() {
       startGameTimer();
       initCamera();
     };
-    manager.onFrameData    = handleRemoteFrame;
+    manager.onFrameData = handleRemoteFrame;
     manager.onDisconnected = () => setConnStatus("disconnected");
 
     manager.joinRoom(code);
@@ -363,13 +386,11 @@ export default function App() {
       <div className="bg-grid" />
 
       {/* ── Title Screen ── */}
-      <div className={`screen title-screen${screen !== "title" ? " hidden" : ""}`}>
+      <div
+        className={`screen title-screen${screen !== "title" ? " hidden" : ""}`}
+      >
         <div className="game-logo">
-          <img
-            src="/assets/logo.jpg"
-            alt="HandFight"
-            className="logo-img"
-          />
+          <img src="/assets/logo.jpg" alt="HandFight" className="logo-img" />
           <h1 className="game-title">HANDFIGHT</h1>
           <p className="game-subtitle">2-Player Webcam Fighting Game</p>
         </div>
@@ -400,8 +421,14 @@ export default function App() {
                   JOIN
                 </button>
               </div>
-              <button className="btn btn-ghost" style={{ width: "100%", fontSize: "0.8rem" }}
-                onClick={() => { setShowJoin(false); setJoinInput(""); }}>
+              <button
+                className="btn btn-ghost"
+                style={{ width: "100%", fontSize: "0.8rem" }}
+                onClick={() => {
+                  setShowJoin(false);
+                  setJoinInput("");
+                }}
+              >
                 Cancel
               </button>
             </div>
@@ -410,17 +437,23 @@ export default function App() {
 
         {/* Gesture Guide */}
         <div className="gesture-guide">
-          {Object.entries(GESTURE_META).filter(([k]) => k !== "idle").map(([k, m]) => (
-            <div className="guide-item" key={k}>
-              <span className="guide-icon">{m.icon}</span>
-              <span className="guide-text" style={{ color: m.color }}>{m.label}</span>
-            </div>
-          ))}
+          {Object.entries(GESTURE_META)
+            .filter(([k]) => k !== "idle")
+            .map(([k, m]) => (
+              <div className="guide-item" key={k}>
+                <span className="guide-icon">{m.icon}</span>
+                <span className="guide-text" style={{ color: m.color }}>
+                  {m.label}
+                </span>
+              </div>
+            ))}
         </div>
       </div>
 
       {/* ── Lobby Screen ── */}
-      <div className={`screen lobby-screen${screen !== "lobby" ? " hidden" : ""}`}>
+      <div
+        className={`screen lobby-screen${screen !== "lobby" ? " hidden" : ""}`}
+      >
         <div className="lobby-card">
           <h2 className="lobby-title">
             {isHost ? "⚡ Room Created" : "🔗 Joining Room"}
@@ -432,25 +465,53 @@ export default function App() {
           </div>
 
           <div className="players-status">
-            <div className={`player-slot p1${connStatus !== "disconnected" ? " connected" : ""}`}>
+            <div
+              className={`player-slot p1${connStatus !== "disconnected" ? " connected" : ""}`}
+            >
               <div className="player-avatar">👊</div>
-              <span className="player-name" style={{ color: "var(--clr-p1)" }}>YOU</span>
-              <span style={{ fontSize: "0.7rem", color: "var(--clr-success)" }}>✓ Ready</span>
+              <span className="player-name" style={{ color: "var(--clr-p1)" }}>
+                YOU
+              </span>
+              <span style={{ fontSize: "0.7rem", color: "var(--clr-success)" }}>
+                ✓ Ready
+              </span>
             </div>
             <span className="vs-badge">VS</span>
-            <div className={`player-slot p2${connStatus === "connected" ? " connected" : ""}`}>
-              <div className="player-avatar" style={{ color: "var(--clr-p2)", borderColor: "var(--clr-p2)" }}>🥊</div>
-              <span className="player-name" style={{ color: "var(--clr-p2)" }}>OPPONENT</span>
-              {connStatus === "connected"
-                ? <span style={{ fontSize: "0.7rem", color: "var(--clr-success)" }}>✓ Ready</span>
-                : <div className="waiting-dots">
-                    <div className="dot" /><div className="dot" /><div className="dot" />
-                  </div>
-              }
+            <div
+              className={`player-slot p2${connStatus === "connected" ? " connected" : ""}`}
+            >
+              <div
+                className="player-avatar"
+                style={{ color: "var(--clr-p2)", borderColor: "var(--clr-p2)" }}
+              >
+                🥊
+              </div>
+              <span className="player-name" style={{ color: "var(--clr-p2)" }}>
+                OPPONENT
+              </span>
+              {connStatus === "connected" ? (
+                <span
+                  style={{ fontSize: "0.7rem", color: "var(--clr-success)" }}
+                >
+                  ✓ Ready
+                </span>
+              ) : (
+                <div className="waiting-dots">
+                  <div className="dot" />
+                  <div className="dot" />
+                  <div className="dot" />
+                </div>
+              )}
             </div>
           </div>
 
-          <p style={{ fontSize: "0.85rem", color: "var(--clr-text-dim)", textAlign: "center" }}>
+          <p
+            style={{
+              fontSize: "0.85rem",
+              color: "var(--clr-text-dim)",
+              textAlign: "center",
+            }}
+          >
             {connStatus === "connecting" || connStatus === "disconnected"
               ? isHost
                 ? "Share the room code with your opponent"
@@ -458,34 +519,47 @@ export default function App() {
               : "Opponent connected! Starting game..."}
           </p>
 
-          <button className="btn btn-ghost" style={{ width: "100%" }}
-            onClick={handlePlayAgain}>
+          <button
+            className="btn btn-ghost"
+            style={{ width: "100%" }}
+            onClick={handlePlayAgain}
+          >
             ← Back
           </button>
         </div>
       </div>
 
       {/* ── Game Screen ── */}
-      <div className={`screen game-screen${screen !== "game" ? " hidden" : ""}`}>
+      <div
+        className={`screen game-screen${screen !== "game" ? " hidden" : ""}`}
+      >
         {/* HUD */}
         <div className="hud">
           <div className="health-section p1">
             <span className="player-label">👊 YOU (P1)</span>
             <div className="health-bar-track">
-              <div className="health-bar-fill" style={{ width: `${p1State.health}%` }} />
+              <div
+                className="health-bar-fill"
+                style={{ width: `${p1State.health}%` }}
+              />
             </div>
             <span className="health-pct">{p1State.health} HP</span>
           </div>
 
           <div className="hud-center">
             <span className="round-badge">ROUND {round}</span>
-            <div className={`timer-display${timer <= 10 ? " urgent" : ""}`}>{timer}</div>
+            <div className={`timer-display${timer <= 10 ? " urgent" : ""}`}>
+              {timer}
+            </div>
           </div>
 
           <div className="health-section p2">
             <span className="player-label">OPPONENT (P2) 🥊</span>
             <div className="health-bar-track">
-              <div className="health-bar-fill" style={{ width: `${p2State.health}%` }} />
+              <div
+                className="health-bar-fill"
+                style={{ width: `${p2State.health}%` }}
+              />
             </div>
             <span className="health-pct">{p2State.health} HP</span>
           </div>
@@ -498,7 +572,12 @@ export default function App() {
             <video
               className="input_video"
               ref={videoRef}
-              style={{ transform: "scaleX(-1)", display: "block", width: "100%", maxWidth: "960px" }}
+              style={{
+                transform: "scaleX(-1)",
+                display: "block",
+                width: "100%",
+                maxWidth: "960px",
+              }}
             />
             <canvas
               className="output_canvas"
@@ -511,24 +590,36 @@ export default function App() {
 
         {/* Gesture Display */}
         <div className="gesture-display">
-          <div className={`gesture-card p1${p1State.gesture !== "idle" ? " active" : ""}`}>
+          <div
+            className={`gesture-card p1${p1State.gesture !== "idle" ? " active" : ""}`}
+          >
             <span className="gesture-icon">{p1Meta.icon}</span>
-            <span className="gesture-label" style={{ color: p1Meta.color }}>{p1Meta.label}</span>
+            <span className="gesture-label" style={{ color: p1Meta.color }}>
+              {p1Meta.label}
+            </span>
           </div>
-          <div className={`gesture-card p2${p2State.gesture !== "idle" ? " active" : ""}`}>
+          <div
+            className={`gesture-card p2${p2State.gesture !== "idle" ? " active" : ""}`}
+          >
             <span className="gesture-icon">{p2Meta.icon}</span>
-            <span className="gesture-label" style={{ color: p2Meta.color }}>{p2Meta.label}</span>
+            <span className="gesture-label" style={{ color: p2Meta.color }}>
+              {p2Meta.label}
+            </span>
           </div>
         </div>
 
         {/* Gesture Guide */}
         <div className="gesture-guide">
-          {Object.entries(GESTURE_META).filter(([k]) => k !== "idle").map(([k, m]) => (
-            <div className="guide-item" key={k}>
-              <span className="guide-icon">{m.icon}</span>
-              <span className="guide-text" style={{ color: m.color }}>{m.label}</span>
-            </div>
-          ))}
+          {Object.entries(GESTURE_META)
+            .filter(([k]) => k !== "idle")
+            .map(([k, m]) => (
+              <div className="guide-item" key={k}>
+                <span className="guide-icon">{m.icon}</span>
+                <span className="guide-text" style={{ color: m.color }}>
+                  {m.label}
+                </span>
+              </div>
+            ))}
         </div>
       </div>
 
@@ -539,13 +630,17 @@ export default function App() {
             {result === "win" && (
               <>
                 <div className="result-title win">🏆 YOU WIN!</div>
-                <p className="result-subtitle">Excellent fighting! Your hands are deadly weapons.</p>
+                <p className="result-subtitle">
+                  Excellent fighting! Your hands are deadly weapons.
+                </p>
               </>
             )}
             {result === "lose" && (
               <>
                 <div className="result-title lose">💀 YOU LOSE</div>
-                <p className="result-subtitle">Better luck next time. Train harder!</p>
+                <p className="result-subtitle">
+                  Better luck next time. Train harder!
+                </p>
               </>
             )}
             {result === "draw" && (
@@ -554,7 +649,14 @@ export default function App() {
                 <p className="result-subtitle">Perfectly matched fighters!</p>
               </>
             )}
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", justifyContent: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "16px",
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}
+            >
               <button className="btn btn-gold" onClick={handlePlayAgain}>
                 🔄 Play Again
               </button>
@@ -577,7 +679,13 @@ export default function App() {
       {screen !== "title" && (
         <div className="connection-badge">
           <div className={`status-dot ${connStatus}`} />
-          <span>{connStatus === "connected" ? "P2P Connected" : connStatus === "connecting" ? "Connecting..." : "Offline"}</span>
+          <span>
+            {connStatus === "connected"
+              ? "P2P Connected"
+              : connStatus === "connecting"
+                ? "Connecting..."
+                : "Offline"}
+          </span>
         </div>
       )}
     </>
