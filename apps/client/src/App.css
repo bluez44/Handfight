@@ -456,17 +456,58 @@
 }
 
 .camera-container {
-  position: relative;
-  z-index: 2;
-  border-radius: var(--radius-md);
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 240px;
+  height: auto;
+  z-index: 100;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow:
-    0 0 0 2px rgba(0, 212, 255, 0.3),
-    0 0 40px rgba(0, 212, 255, 0.2),
-    0 20px 60px rgba(0,0,0,0.8);
-  max-width: 100%;
-  max-height: 100%;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 0 2px var(--clr-border);
+  opacity: 0.8;
+  transition: opacity 0.2s;
 }
+.camera-container:hover {
+  opacity: 1;
+}
+
+/* ─── Fighters ─── */
+.fighters-container {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.fighter-avatar {
+  position: absolute;
+  bottom: 10%;
+  width: min(300px, 35vw);
+  height: auto;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+  transition: transform 0.1s ease-out, filter 0.2s;
+}
+.fighter-avatar.p1 {
+  left: 10%;
+  border: 2px solid var(--clr-p1);
+  box-shadow: 0 0 30px var(--clr-p1-glow);
+}
+.fighter-avatar.p2 {
+  right: 10%;
+  border: 2px solid var(--clr-p2);
+  box-shadow: 0 0 30px var(--clr-p2-glow);
+  transform: scaleX(-1);
+}
+
+.fighter-avatar.punch { transform: translateX(40px) scale(1.05); z-index: 5; }
+.fighter-avatar.p2.punch { transform: translateX(-40px) scale(1.05) scaleX(-1); z-index: 5; }
+.fighter-avatar.block { filter: brightness(0.6) sepia(1) hue-rotate(180deg); transform: scale(0.95); }
+.fighter-avatar.p2.block { filter: brightness(0.6) sepia(1) hue-rotate(300deg); transform: scale(0.95) scaleX(-1); }
+.fighter-avatar.move { transform: translateY(-20px); }
+.fighter-avatar.p2.move { transform: translateY(-20px) scaleX(-1); }
 
 .input_video {
   display: block;
