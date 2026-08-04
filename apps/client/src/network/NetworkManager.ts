@@ -1,11 +1,11 @@
 import { io, Socket } from "socket.io-client";
-import Peer from "peerjs";
+import Peer, { DataConnection } from "peerjs";
 import type { FrameData } from "../../packages/shared/src/types";
 
 export class NetworkManager {
   private socket: Socket;
   private peer: Peer | null = null;
-  private conn: any | null = null;
+  private conn: DataConnection | null = null;
   private serverUrl: string;
   private roomCode: string | null = null;
   private isInitiator = false;
@@ -73,7 +73,7 @@ export class NetworkManager {
     this.peer.on("error", (err) => console.error("[P2P]", err));
   }
 
-  private setupDataConnection(conn: any) {
+  private setupDataConnection(conn: DataConnection) {
     this.conn = conn;
 
     conn.on("open", () => {
@@ -81,13 +81,13 @@ export class NetworkManager {
       this.onConnected?.();
     });
 
-    conn.on("data", (raw) => {
+    conn.on("data", (raw: string) => {
       const data: FrameData = JSON.parse(raw as string);
       this.onFrameData?.(data);
     });
 
     conn.on("close", () => this.onDisconnected?.());
-    conn.on("error", (err) => console.error("[P2P] conn:", err));
+    conn.on("error", (err: Error) => console.error("[P2P] conn:", err));
   }
 
   sendFrame(data: FrameData) {
