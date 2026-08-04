@@ -34,7 +34,10 @@ describe('GameGateway', () => {
   describe('onModuleInit', () => {
     it('should register a connection handler on the server', () => {
       gateway.onModuleInit();
-      expect(mockServer.on).toHaveBeenCalledWith('connection', expect.any(Function));
+      expect(mockServer.on).toHaveBeenCalledWith(
+        'connection',
+        expect.any(Function),
+      );
     });
   });
 
@@ -67,15 +70,21 @@ describe('GameGateway', () => {
 
     it('should join the socket to the created room', () => {
       const client = createMockSocket('socket-1');
-      const { data: { roomCode } } = gateway.handleCreate(client as any);
+      const {
+        data: { roomCode },
+      } = gateway.handleCreate(client as any);
 
       expect(client.join).toHaveBeenCalledWith(roomCode);
     });
 
     it('should generate a unique code on each call', () => {
       const client = createMockSocket('socket-1');
-      const { data: { roomCode: code1 } } = gateway.handleCreate(client as any);
-      const { data: { roomCode: code2 } } = gateway.handleCreate(client as any);
+      const {
+        data: { roomCode: code1 },
+      } = gateway.handleCreate(client as any);
+      const {
+        data: { roomCode: code2 },
+      } = gateway.handleCreate(client as any);
 
       expect(code1).not.toBe(code2);
     });
@@ -88,13 +97,18 @@ describe('GameGateway', () => {
       const client = createMockSocket('socket-2');
       const result = gateway.handleJoin({ roomCode: 'XXXXX' }, client as any);
 
-      expect(result).toEqual({ event: 'room:error', data: 'Room full or not found' });
+      expect(result).toEqual({
+        event: 'room:error',
+        data: 'Room full or not found',
+      });
     });
 
     it('should join the socket to the room', () => {
       const host = createMockSocket('socket-1');
       const joiner = createMockSocket('socket-2');
-      const { data: { roomCode } } = gateway.handleCreate(host as any);
+      const {
+        data: { roomCode },
+      } = gateway.handleCreate(host as any);
 
       mockServer.to.mockReturnValue({ emit: jest.fn() });
       gateway.handleJoin({ roomCode }, joiner as any);
@@ -105,7 +119,9 @@ describe('GameGateway', () => {
     it('should emit room:ready to both players with correct initiator and joiner', () => {
       const host = createMockSocket('socket-1');
       const joiner = createMockSocket('socket-2');
-      const { data: { roomCode } } = gateway.handleCreate(host as any);
+      const {
+        data: { roomCode },
+      } = gateway.handleCreate(host as any);
 
       const mockRoomEmit = jest.fn();
       mockServer.to.mockReturnValue({ emit: mockRoomEmit });
@@ -124,13 +140,18 @@ describe('GameGateway', () => {
       const host = createMockSocket('socket-1');
       const joiner1 = createMockSocket('socket-2');
       const joiner2 = createMockSocket('socket-3');
-      const { data: { roomCode } } = gateway.handleCreate(host as any);
+      const {
+        data: { roomCode },
+      } = gateway.handleCreate(host as any);
 
       mockServer.to.mockReturnValue({ emit: jest.fn() });
       gateway.handleJoin({ roomCode }, joiner1 as any);
 
       const result = gateway.handleJoin({ roomCode }, joiner2 as any);
-      expect(result).toEqual({ event: 'room:error', data: 'Room full or not found' });
+      expect(result).toEqual({
+        event: 'room:error',
+        data: 'Room full or not found',
+      });
     });
   });
 
@@ -165,7 +186,9 @@ describe('GameGateway', () => {
   describe('handleDisconnect', () => {
     it('should emit room:playerLeft with room info when a client disconnects', () => {
       const host = createMockSocket('socket-1');
-      const { data: { roomCode } } = gateway.handleCreate(host as any);
+      const {
+        data: { roomCode },
+      } = gateway.handleCreate(host as any);
 
       const mockRoomEmit = jest.fn();
       mockServer.to.mockReturnValue({ emit: mockRoomEmit });
@@ -181,7 +204,9 @@ describe('GameGateway', () => {
 
     it('should delete the room after disconnect', () => {
       const host = createMockSocket('socket-1');
-      const { data: { roomCode } } = gateway.handleCreate(host as any);
+      const {
+        data: { roomCode },
+      } = gateway.handleCreate(host as any);
 
       mockServer.to.mockReturnValue({ emit: jest.fn() });
       gateway.handleDisconnect(host as any);
@@ -189,7 +214,10 @@ describe('GameGateway', () => {
       // Room is gone — a new join attempt should return error
       const newClient = createMockSocket('socket-2');
       const result = gateway.handleJoin({ roomCode }, newClient as any);
-      expect(result).toEqual({ event: 'room:error', data: 'Room full or not found' });
+      expect(result).toEqual({
+        event: 'room:error',
+        data: 'Room full or not found',
+      });
     });
 
     it('should not emit anything when the client is not in any room', () => {

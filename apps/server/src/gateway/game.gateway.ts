@@ -7,7 +7,10 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import type { RoomJoinPayload, SignalPayload } from '../../packages/shared/src/types';
+import type {
+  RoomJoinPayload,
+  SignalPayload,
+} from '../../packages/shared/src/types';
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({ cors: { origin: '*' } })
@@ -25,10 +28,9 @@ export class GameGateway implements OnGatewayDisconnect, OnModuleInit {
 
   @SubscribeMessage('ping')
   handlePing() {
-
     console.log('Received ping');
     this.server.emit('pong', {
-        message: 'pong',
+      message: 'pong',
     });
 
     return { event: 'pong' };
@@ -89,9 +91,9 @@ export class GameGateway implements OnGatewayDisconnect, OnModuleInit {
   handleDisconnect(client: Socket) {
     this.rooms.forEach((players, code) => {
       if (players.includes(client.id)) {
-        this.server.to(code).emit('room:playerLeft', { 
-            roomCode: code,
-            message: 'Opponent disconnected',
+        this.server.to(code).emit('room:playerLeft', {
+          roomCode: code,
+          message: 'Opponent disconnected',
         });
         this.rooms.delete(code);
       }
