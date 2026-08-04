@@ -385,6 +385,41 @@ export default function App() {
       <div className="bg-gradient" />
       <div className="bg-grid" />
 
+      {/* ── Persistent Game Arena ── */}
+      <div className="game-arena">
+        <img src="/assets/arena_bg.jpg" alt="Arena" className="arena-bg" />
+        
+        <div className="fighters-container">
+          <img 
+            src="/assets/sprites/fighter_p1.jpg" 
+            alt="P1" 
+            className={`fighter-avatar p1 ${p1State.gesture}`} 
+          />
+          <img 
+            src="/assets/sprites/fighter_p2.jpg" 
+            alt="P2" 
+            className={`fighter-avatar p2 ${p2State.gesture}`} 
+          />
+        </div>
+
+        <div className="camera-container">
+          <video
+            className="input_video"
+            ref={videoRef}
+            style={{
+              transform: "scaleX(-1)",
+              display: "block",
+              width: "100%",
+            }}
+          />
+          <canvas
+            className="output_canvas"
+            ref={canvasRef}
+          />
+        </div>
+      </div>
+
+
       {/* ── Title Screen ── */}
       <div
         className={`screen title-screen${screen !== "title" ? " hidden" : ""}`}
@@ -562,40 +597,6 @@ export default function App() {
               />
             </div>
             <span className="health-pct">{p2State.health} HP</span>
-          </div>
-        </div>
-
-        {/* Arena */}
-        <div className="game-arena">
-          <img src="/assets/arena_bg.jpg" alt="Arena" className="arena-bg" />
-          
-          <div className="fighters-container">
-            <img 
-              src="/assets/sprites/fighter_p1.jpg" 
-              alt="P1" 
-              className={`fighter-avatar p1 ${p1State.gesture}`} 
-            />
-            <img 
-              src="/assets/sprites/fighter_p2.jpg" 
-              alt="P2" 
-              className={`fighter-avatar p2 ${p2State.gesture}`} 
-            />
-          </div>
-
-          <div className="camera-container">
-            <video
-              className="input_video"
-              ref={videoRef}
-              style={{
-                transform: "scaleX(-1)",
-                display: "block",
-                width: "100%",
-              }}
-            />
-            <canvas
-              className="output_canvas"
-              ref={canvasRef}
-            />
           </div>
         </div>
 
