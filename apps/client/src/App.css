@@ -26,7 +26,7 @@
   background-size: 50px 50px;
   animation: gridScroll 20s linear infinite;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 .bg-gradient {
   position: fixed;
@@ -35,7 +35,7 @@
               radial-gradient(ellipse at 80% 50%, rgba(120, 0, 0, 0.3) 0%, transparent 60%),
               linear-gradient(180deg, #0a0a12 0%, #0d0d1f 100%);
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 @keyframes gridScroll {
@@ -437,12 +437,14 @@
 
 /* ─── Camera+Canvas Area ─── */
 .game-arena {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .arena-bg {
@@ -459,14 +461,15 @@
   position: absolute;
   bottom: 20px;
   right: 20px;
-  width: 240px;
-  height: auto;
+  width: 320px;
+  aspect-ratio: 16 / 9;
   z-index: 100;
   border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 0 2px var(--clr-border);
   opacity: 0.8;
   transition: opacity 0.2s;
+  background: #000;
 }
 .camera-container:hover {
   opacity: 1;
@@ -512,7 +515,8 @@
 .input_video {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
 }
 .output_canvas {
   position: absolute;
